@@ -1,0 +1,131 @@
+Resources:
+  # SQS Queue for Orchestrator incoming messages (from Telegram webhook, etc.)
+  OrchestratorInbox:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: OrchestratorInbox
+      VisibilityTimeout: 30
+      MessageRetentionPeriod: 86400
+      ReceiveMessageWaitTimeSeconds: 20
+
+  # Lambda: Telegram Webhook → SQS
+  telegramWebhook:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: telegramWebhook
+      Handler: handlers.webhook.telegramWebhookHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          ORCHESTRATOR_QUEUE_URL: !Ref OrchestratorInbox
+          OWNER_CHAT_ID: 'YOUR_OWNER_CHAT_ID'
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - '*'
+
+  # Lambda: SMS Webhook → SQS
+  smsWebhook:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: smsWebhook
+      Handler: handlers.sms_webhook.smsWebhookHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          ORCHESTRATOR_QUEUE_URL: !Ref OrchestratorInbox
+          TWILIO_AUTH_TOKEN_SSM: '/bartimaeus/creds/twilio-auth-token'
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - '*'
+
+  # Lambda: Bot-to-Bot Communication Webhook → SQS
+  botWebhook:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: botWebhook
+      Handler: handlers.bot_webhook.botWebhookHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          ORCHESTRATOR_QUEUE_URL: !Ref OrchestratorInbox
+          MEDIA_BUCKET: bartimaeus-chat-media
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - '*'
+
+  # Lambda: Voice Call Webhook (Twilio → Bedrock AI conversation)
+  voiceWebhook:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: voiceWebhook
+      Handler: handlers.voice_webhook.voiceWebhookHandler
+      Timeout: 60
+      MemorySize: 256
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          VOICE_CALLS_TABLE: !Ref BartVoiceCalls
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - '*'
+
+Outputs:
+  VoiceWebhookUrl:
+    Description: Voice call webhook Function URL
+    Value: !GetAtt voiceWebhookUrl.FunctionUrl
+    Export:
+      Name: !Sub '${AWS::StackName}-VoiceWebhookUrl'
+
+  OrchestratorInboxUrl:
+    Description: SQS URL for orchestrator incoming messages
+    Value: !Ref OrchestratorInbox
+    Export:
+      Name: !Sub '${AWS::StackName}-OrchestratorInboxUrl'
+
+  OrchestratorInboxArn:
+    Description: SQS ARN for orchestrator incoming messages
+    Value: !GetAtt OrchestratorInbox.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-OrchestratorInboxArn'
+
+  TelegramWebhookUrl:
+    Description: Telegram webhook Function URL
+    Value: !GetAtt telegramWebhookUrl.FunctionUrl
+    Export:
+      Name: !Sub '${AWS::StackName}-TelegramWebhookUrl'
+
+  SmsWebhookUrl:
+    Description: SMS webhook Function URL
+    Value: !GetAtt smsWebhookUrl.FunctionUrl
+    Export:
+      Name: !Sub '${AWS::StackName}-SmsWebhookUrl'
+
+  BotWebhookUrl:
+    Description: Bot-to-bot communication webhook Function URL
+    Value: !GetAtt botWebhookUrl.FunctionUrl
+    Export:
+      Name: !Sub '${AWS::StackName}-BotWebhookUrl'

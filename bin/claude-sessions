@@ -1,0 +1,63 @@
+#!/bin/bash
+# Manage Claude Code tmux sessions
+# Usage:
+#   claude-sessions          — list all windows
+#   claude-sessions attach   — attach to the session
+#   claude-sessions kill N   — kill window N
+#   claude-sessions new      — spawn a new Claude window
+
+SESSION="claude"
+TMUX="/opt/homebrew/bin/tmux"
+WATCHER="/Users/bartimaeus/.venvs/global/bin/python /Users/bartimaeus/agent-dashboard/tracker/hooks/tmux_watcher.py"
+
+_ensure_watcher() {
+    if ! pgrep -f "tmux_watcher.py" > /dev/null 2>&1; then
+        $WATCHER > /tmp/tmux_watcher.log 2>&1 &
+        echo "Started tmux watcher (PID $!)"
+    fi
+}
+
+case "${1:-list}" in
+    list|ls)
+        if ! $TMUX has-session -t "$SESSION" 2>/dev/null; then
+            echo "No active claude tmux session"
+            exit 0
+        fi
+        echo "Claude sessions:"
+        $TMUX list-windows -t "$SESSION" -F "  #{window_index}: #{window_name} [#{pane_current_command}] #{?window_active,(active),}"
+        echo ""
+        if pgrep -f "tmux_watcher.py" > /dev/null 2>&1; then
+            echo "Watcher: running"
+        else
+            echo "Watcher: not running (start with: claude-sessions watcher)"
+        fi
+        ;;
+    attach|a)
+        $TMUX attach -t "$SESSION"
+        ;;
+    kill|k)
+        if [ -z "$2" ]; then
+            echo "Usage: claude-sessions kill <window-index>"
+            exit 1
+        fi
+        $TMUX kill-window -t "$SESSION:$2"
+        echo "Killed window $2"
+        ;;
+    new|n)
+        CLAUDE="/Users/bartimaeus/.local/bin/claude --dangerously-skip-permissions"
+        WINDOW_NAME="s$(date +%H%M%S)"
+        if ! $TMUX has-session -t "$SESSION" 2>/dev/null; then
+            $TMUX new-session -d -s "$SESSION" -n "$WINDOW_NAME" "cd ~ && $CLAUDE"
+        else
+            $TMUX new-window -t "$SESSION" -n "$WINDOW_NAME" "cd ~ && $CLAUDE"
+        fi
+        _ensure_watcher
+        echo "Spawned new Claude session: $WINDOW_NAME"
+        ;;
+    watcher|w)
+        _ensure_watcher
+        ;;
+    *)
+        echo "Usage: claude-sessions [list|attach|kill <N>|new|watcher]"
+        ;;
+esac

@@ -1,0 +1,122 @@
+Resources:
+  # IAM Role for Lambda Functions
+  DashboardLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: DashboardLambdaExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt AgentTracker.Arn
+                  - !GetAtt AgentLogs.Arn
+                  - !GetAtt AgentCommands.Arn
+                  - !GetAtt AgentChat.Arn
+                  - !GetAtt MemoryEvents.Arn
+                  - !GetAtt PushTokens.Arn
+                  - !Sub '${AgentTracker.Arn}/index/*'
+                  - !Sub '${AgentLogs.Arn}/index/*'
+                  - !Sub '${AgentCommands.Arn}/index/*'
+                  - !Sub '${AgentChat.Arn}/index/*'
+                  - !Sub '${MemoryEvents.Arn}/index/*'
+                  - !Sub '${PushTokens.Arn}/index/*'
+                  - !GetAtt BusinessExpenses.Arn
+                  - !Sub '${BusinessExpenses.Arn}/index/*'
+                  - !GetAtt BartVoiceCalls.Arn
+                  - !GetAtt BotCommBots.Arn
+                  - !GetAtt BotCommSessions.Arn
+                  - !GetAtt BotCommMessages.Arn
+                  - 'arn:aws:dynamodb:us-east-1:YOUR_AWS_ACCOUNT_ID:table/BSEStocks'
+                  - 'arn:aws:dynamodb:us-east-1:YOUR_AWS_ACCOUNT_ID:table/BSEStocks/index/*'
+                  - 'arn:aws:dynamodb:us-east-1:YOUR_AWS_ACCOUNT_ID:table/VolumeShocks'
+                  - 'arn:aws:dynamodb:us-east-1:YOUR_AWS_ACCOUNT_ID:table/Trades'
+                  - 'arn:aws:dynamodb:us-east-1:YOUR_AWS_ACCOUNT_ID:table/Trades/index/*'
+                  - !GetAtt BotTracker.Arn
+                  - !GetAtt Projects.Arn
+                  - !Sub '${Projects.Arn}/index/*'
+        - PolicyName: S3MediaAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource:
+                  - 'arn:aws:s3:::bartimaeus-chat-media/*'
+                  - 'arn:aws:s3:::altum-deployment-assets/schedule/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - 'arn:aws:s3:::bartimaeus-chat-media'
+                Condition:
+                  StringLike:
+                    s3:prefix:
+                      - 'memory/*'
+        - PolicyName: SQSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt OrchestratorInbox.Arn
+        - PolicyName: SSMAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource:
+                  - 'arn:aws:ssm:us-east-1:YOUR_AWS_ACCOUNT_ID:parameter/bartimaeus/creds/*'
+                  - 'arn:aws:ssm:us-east-1:YOUR_AWS_ACCOUNT_ID:parameter/bartimaeus/botcomm/*'
+              - Effect: Allow
+                Action:
+                  - ssm:PutParameter
+                  - ssm:DeleteParameter
+                Resource:
+                  - 'arn:aws:ssm:us-east-1:YOUR_AWS_ACCOUNT_ID:parameter/bartimaeus/botcomm/*'
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource:
+                  - 'arn:aws:bedrock:*::foundation-model/*'
+                  - 'arn:aws:bedrock:us-east-1:YOUR_AWS_ACCOUNT_ID:inference-profile/*'
+        - PolicyName: CloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'

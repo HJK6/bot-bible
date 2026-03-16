@@ -1,0 +1,283 @@
+Resources:
+  # DynamoDB Tables
+  AgentTracker:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AgentTracker
+      AttributeDefinitions:
+        - AttributeName: agent_id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: agent_type
+          AttributeType: S
+      KeySchema:
+        - AttributeName: agent_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      GlobalSecondaryIndexes:
+        - IndexName: StatusIndex
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: TypeIndex
+          KeySchema:
+            - AttributeName: agent_type
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  BotTracker:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BotTracker
+      AttributeDefinitions:
+        - AttributeName: bot_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: bot_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  AgentLogs:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AgentLogs
+      AttributeDefinitions:
+        - AttributeName: agent_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: agent_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  AgentCommands:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AgentCommands
+      AttributeDefinitions:
+        - AttributeName: command_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: command_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  AgentChat:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AgentChat
+      AttributeDefinitions:
+        - AttributeName: agent_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: agent_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  MemoryEvents:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MemoryEvents
+      AttributeDefinitions:
+        - AttributeName: source_category
+          AttributeType: S
+        - AttributeName: timestamp_id
+          AttributeType: S
+        - AttributeName: date_key
+          AttributeType: S
+        - AttributeName: timestamp_ms
+          AttributeType: N
+      KeySchema:
+        - AttributeName: source_category
+          KeyType: HASH
+        - AttributeName: timestamp_id
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      GlobalSecondaryIndexes:
+        - IndexName: DateIndex
+          KeySchema:
+            - AttributeName: date_key
+              KeyType: HASH
+            - AttributeName: timestamp_ms
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  PushTokens:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: PushTokens
+      AttributeDefinitions:
+        - AttributeName: push_token
+          AttributeType: S
+      KeySchema:
+        - AttributeName: push_token
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  BusinessExpenses:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BusinessExpenses
+      AttributeDefinitions:
+        - AttributeName: year
+          AttributeType: S
+        - AttributeName: sort_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: year
+          KeyType: HASH
+        - AttributeName: sort_key
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  BartVoiceCalls:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BartVoiceCalls
+      AttributeDefinitions:
+        - AttributeName: call_sid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: call_sid
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # Bot-to-Bot Communication Tables
+  BotCommBots:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BotCommBots
+      AttributeDefinitions:
+        - AttributeName: bot_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: bot_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  BotCommSessions:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BotCommSessions
+      AttributeDefinitions:
+        - AttributeName: bot_id
+          AttributeType: S
+        - AttributeName: session_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: bot_id
+          KeyType: HASH
+        - AttributeName: session_id
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  Expenses:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Expenses
+      AttributeDefinitions:
+        - AttributeName: expense_id
+          AttributeType: S
+        - AttributeName: category
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+        - AttributeName: year
+          AttributeType: S
+      KeySchema:
+        - AttributeName: expense_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: CategoryIndex
+          KeySchema:
+            - AttributeName: category
+              KeyType: HASH
+            - AttributeName: date
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: YearIndex
+          KeySchema:
+            - AttributeName: year
+              KeyType: HASH
+            - AttributeName: date
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  BotCommMessages:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BotCommMessages
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: message_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+        - AttributeName: message_id
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  Projects:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Projects
+      AttributeDefinitions:
+        - AttributeName: project_id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: project_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: StatusIndex
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL

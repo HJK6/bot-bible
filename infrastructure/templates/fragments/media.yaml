@@ -1,0 +1,59 @@
+Resources:
+  ChatMediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: bartimaeus-chat-media
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldMedia
+            Status: Enabled
+            ExpirationInDays: 90
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [PUT]
+            AllowedOrigins: ['*']
+            MaxAge: 3600
+
+  ExpenseReceiptsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: bartimaeus-expense-receipts
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  dashGetUploadUrl:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetUploadUrl
+      Handler: handlers.media.getUploadUrlHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          MEDIA_BUCKET: !Ref ChatMediaBucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetUploadUrl
+            Method: POST
+
+Outputs:
+  ChatMediaBucketName:
+    Description: S3 bucket for chat media uploads
+    Value: !Ref ChatMediaBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-ChatMediaBucket'

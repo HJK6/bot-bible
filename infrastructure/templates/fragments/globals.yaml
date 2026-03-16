@@ -1,0 +1,13 @@
+Globals:
+  Function:
+    Runtime: python3.13
+    Timeout: 30
+    Environment:
+      Variables:
+        AGENT_TRACKER_TABLE: !Ref AgentTracker
+        AGENT_LOGS_TABLE: !Ref AgentLogs
+        AGENT_COMMANDS_TABLE: !Ref AgentCommands
+        AGENT_CHAT_TABLE: !Ref AgentChat
+        BOT_TRACKER_TABLE: !Ref BotTracker
+        CODE_BUCKET: '{{resolve:ssm:/agent-dashboard/s3/code-bucket}}'
+        PROJECTS_TABLE: !Ref Projects

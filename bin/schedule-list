@@ -1,0 +1,283 @@
+#!/usr/bin/env /Users/bartimaeus/.venvs/global/bin/python
+"""Rich schedule list — shows all launchd scheduled jobs grouped by category with times."""
+
+import json
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+PLIST_DIR = Path.home() / "Library" / "LaunchAgents"
+WRAPPER_DIR = Path.home() / ".schedule" / "wrappers"
+JOBS_LOG = Path.home() / ".schedule" / "jobs.log"
+PREFIX = "com.bartimaeus.schedule"
+
+WEEKDAY_NAMES = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
+MONTH_NAMES = {1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
+               7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"}
+
+# Tag prefix → category mapping
+CATEGORIES = {
+    "stocks": "Stocks", "stock": "Stocks", "nse": "Stocks",
+    "buysignal": "Stocks", "announcements": "Stocks",
+    "0dte": "Trading", "futures": "Trading", "fyers": "Trading",
+    "aceable": "Aceable",
+    "cold": "Land", "lgbs": "Land", "foreclosures": "Land",
+    "claude": "System", "heartbeat": "System", "bart": "System", "schedule": "System",
+}
+
+CATEGORY_ORDER = ["Stocks", "Trading", "Land", "Aceable", "System", "Other", "Stale"]
+
+
+def get_uid():
+    return subprocess.run(["id", "-u"], capture_output=True, text=True).stdout.strip()
+
+
+def is_loaded(label: str, uid: str) -> bool:
+    result = subprocess.run(
+        ["launchctl", "print", f"gui/{uid}/{label}"],
+        capture_output=True, text=True,
+    )
+    return result.returncode == 0
+
+
+def parse_plist(path: Path) -> dict:
+    result = subprocess.run(
+        ["plutil", "-convert", "json", "-o", "-", str(path)],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return {}
+    return json.loads(result.stdout)
+
+
+def get_command(tag: str) -> str:
+    wrapper = WRAPPER_DIR / f"{tag}.sh"
+    if not wrapper.exists():
+        return ""
+    lines = wrapper.read_text().splitlines()
+    for i, line in enumerate(lines):
+        if line.strip() == "# Execute":
+            if i + 1 < len(lines):
+                cmd = lines[i + 1]
+                # Strip the >> redirect suffix the wrapper adds
+                if " >> " in cmd:
+                    cmd = cmd[:cmd.index(" >> ")]
+                return cmd.strip()
+    return ""
+
+
+def categorize(tag: str) -> str:
+    for prefix, cat in CATEGORIES.items():
+        if tag.startswith(prefix):
+            return cat
+    # Try splitting on first hyphen
+    parts = tag.split("-")
+    if parts[0] in CATEGORIES:
+        return CATEGORIES[parts[0]]
+    return "Other"
+
+
+def format_schedule(plist_data: dict) -> tuple[str, str, bool]:
+    """Returns (time_str, days_str, is_one_time)."""
+    # Handle StartInterval (run every N seconds)
+    interval = plist_data.get("StartInterval")
+    if interval:
+        if interval < 60:
+            return (f"every {interval}s", "always", False)
+        elif interval < 3600:
+            return (f"every {interval // 60}m", "always", False)
+        else:
+            return (f"every {interval // 3600}h", "always", False)
+
+    cal = plist_data.get("StartCalendarInterval")
+    if not cal:
+        return ("?", "?", False)
+
+    # One-time: dict with Month key
+    if isinstance(cal, dict):
+        if "Month" in cal:
+            month = MONTH_NAMES.get(cal["Month"], str(cal["Month"]))
+            day = cal.get("Day", "?")
+            hour = cal.get("Hour", 0)
+            minute = cal.get("Minute", 0)
+            return (f"{hour:02d}:{minute:02d}", f"{month} {day}", True)
+        elif "Hour" not in cal and "Minute" in cal:
+            # Minute-only = runs every hour at :MM
+            minute = cal.get("Minute", 0)
+            return (f":{minute:02d}", "hourly", False)
+        else:
+            hour = cal.get("Hour", 0)
+            minute = cal.get("Minute", 0)
+            return (f"{hour:02d}:{minute:02d}", "daily", False)
+
+    # Recurring: array of dicts
+    if isinstance(cal, list) and len(cal) > 0:
+        first = cal[0]
+        hour = first.get("Hour", 0)
+        minute = first.get("Minute", 0)
+        time_str = f"{hour:02d}:{minute:02d}"
+
+        if "Weekday" in first:
+            weekdays = sorted(set(d.get("Weekday", 0) for d in cal))
+            # Named patterns
+            if weekdays == [1, 2, 3, 4, 5]:
+                return (time_str, "weekdays", False)
+            elif weekdays == [0, 6]:
+                return (time_str, "weekends", False)
+            elif weekdays == list(range(7)):
+                return (time_str, "daily", False)
+            else:
+                day_names = [WEEKDAY_NAMES.get(d, "?") for d in weekdays]
+                return (time_str, ",".join(day_names), False)
+        else:
+            return (time_str, "daily", False)
+
+    return ("?", "?", False)
+
+
+def get_last_run(tag: str) -> str | None:
+    """Get last run timestamp from jobs.log."""
+    if not JOBS_LOG.exists():
+        return None
+    try:
+        lines = JOBS_LOG.read_text().splitlines()
+        for line in reversed(lines):
+            if f"completed" in line and tag in line:
+                return line.split(" | ")[0]
+            if f"running" in line and tag in line:
+                return line.split(" | ")[0]
+    except Exception:
+        pass
+    return None
+
+
+def collect_jobs() -> list[dict]:
+    uid = get_uid()
+    jobs = []
+
+    for plist_path in sorted(PLIST_DIR.glob(f"{PREFIX}.*.plist")):
+        label = plist_path.stem
+        tag = label[len(PREFIX) + 1:]
+
+        plist_data = parse_plist(plist_path)
+        if not plist_data:
+            continue
+
+        active = is_loaded(label, uid)
+        time_str, days_str, is_one_time = format_schedule(plist_data)
+        command = get_command(tag)
+        category = categorize(tag)
+        last_run = get_last_run(tag)
+
+        # Flag stale one-time jobs
+        stale = is_one_time and not active
+
+        job = {
+            "tag": tag,
+            "type": "one-time" if is_one_time else "recurring",
+            "active": active,
+            "stale": stale,
+            "time": time_str,
+            "days": days_str,
+            "category": "Stale" if stale else category,
+            "command": command,
+            "last_run": last_run,
+        }
+        jobs.append(job)
+
+    return jobs
+
+
+def print_text(jobs: list[dict]):
+    # Group by category
+    groups: dict[str, list[dict]] = {}
+    for job in jobs:
+        cat = job["category"]
+        groups.setdefault(cat, []).append(job)
+
+    total_active = sum(1 for j in jobs if j["active"])
+    total = len(jobs)
+    print(f"=== Scheduled Jobs ({total_active} active / {total} total) ===\n")
+
+    for cat in CATEGORY_ORDER:
+        if cat not in groups:
+            continue
+        cat_jobs = groups[cat]
+        print(f"  {cat.upper()} ({len(cat_jobs)})")
+
+        for job in sorted(cat_jobs, key=lambda j: j["tag"]):
+            status = ""
+            if job["stale"]:
+                status = " STALE"
+            elif not job["active"]:
+                status = " inactive"
+
+            type_badge = "once" if job["type"] == "one-time" else ""
+            time_display = f"{job['time']}  {job['days']}"
+
+            tag_col = job["tag"].ljust(28)
+            time_col = time_display.ljust(22)
+            status_col = status
+
+            print(f"    {tag_col} {time_col} {type_badge}{status_col}")
+
+        print()
+
+    # Crontab
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    cron_lines = [l for l in (result.stdout or "").splitlines() if l.strip() and not l.startswith("#")]
+    if cron_lines:
+        print(f"  CRONTAB ({len(cron_lines)})")
+        for line in cron_lines:
+            print(f"    {line}")
+        print()
+
+    # Recent history
+    if JOBS_LOG.exists():
+        lines = JOBS_LOG.read_text().splitlines()[-10:]
+        if lines:
+            print("  RECENT HISTORY")
+            for line in lines:
+                print(f"    {line}")
+
+
+def print_json(jobs: list[dict]):
+    print(json.dumps(jobs, indent=2))
+
+
+def sync_to_s3(jobs: list[dict]):
+    """Push schedule data to S3 for dashboard consumption."""
+    import boto3
+    s3 = boto3.client("s3", region_name="us-east-1")
+    payload = {
+        "synced_at": datetime.now().isoformat(),
+        "host": subprocess.run(["hostname"], capture_output=True, text=True).stdout.strip(),
+        "total": len(jobs),
+        "active": sum(1 for j in jobs if j["active"]),
+        "jobs": jobs,
+    }
+    s3.put_object(
+        Bucket="altum-deployment-assets",
+        Key="schedule/jobs.json",
+        Body=json.dumps(payload),
+        ContentType="application/json",
+    )
+    print(f"Synced {len(jobs)} jobs to S3")
+
+
+def main():
+    output_json = "--json" in sys.argv
+    do_sync = "--sync" in sys.argv
+    jobs = collect_jobs()
+
+    if do_sync:
+        sync_to_s3(jobs)
+    elif output_json:
+        print_json(jobs)
+    else:
+        print_text(jobs)
+
+
+if __name__ == "__main__":
+    main()

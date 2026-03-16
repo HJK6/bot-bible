@@ -1,0 +1,120 @@
+Outputs:
+  ApiUrl:
+    Description: API Gateway URL
+    Value: !Sub "https://${AgentDashboardApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiUrl'
+
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+    Export:
+      Name: !Sub '${AWS::StackName}-UserPoolId'
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref CognitoUserPoolClient
+    Export:
+      Name: !Sub '${AWS::StackName}-UserPoolClientId'
+
+  FrontendBucketUrl:
+    Description: Frontend S3 Website URL
+    Value: !Sub 'https://bartimaeus.quest'
+    Export:
+      Name: !Sub '${AWS::StackName}-FrontendBucketUrl'
+
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub '${AWS::StackName}-CloudFrontDistributionId'
+
+  CloudFrontDomainName:
+    Description: CloudFront Domain Name
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub '${AWS::StackName}-CloudFrontDomainName'
+
+  dashGetAgentsFunction:
+    Description: Lambda function name for getting agents
+    Value: !Ref dashGetAgents
+    Export:
+      Name: !Sub '${AWS::StackName}-dashGetAgents'
+
+  dashGetBotsFunction:
+    Description: Lambda function name for getting bots
+    Value: !Ref dashGetBots
+    Export:
+      Name: !Sub '${AWS::StackName}-dashGetBots'
+
+  dashGetUsageFunction:
+    Description: Lambda function name for getting Claude usage
+    Value: !Ref dashGetUsage
+    Export:
+      Name: !Sub '${AWS::StackName}-dashGetUsage'
+
+  dashGetAgentLogsFunction:
+    Description: Lambda function name for getting agent logs
+    Value: !Ref dashGetAgentLogs
+    Export:
+      Name: !Sub '${AWS::StackName}-dashGetAgentLogs'
+
+  dashGetAgentChatFunction:
+    Description: Lambda function name for getting agent chat
+    Value: !Ref dashGetAgentChat
+    Export:
+      Name: !Sub '${AWS::StackName}-dashGetAgentChat'
+
+  dashCreateCommandFunction:
+    Description: Lambda function name for creating commands
+    Value: !Ref dashCreateCommand
+    Export:
+      Name: !Sub '${AWS::StackName}-dashCreateCommand'
+
+  dashUpdateAgentFunction:
+    Description: Lambda function name for updating agents
+    Value: !Ref dashUpdateAgent
+    Export:
+      Name: !Sub '${AWS::StackName}-dashUpdateAgent'
+
+  dashDeleteAgentFunction:
+    Description: Lambda function name for deleting agents
+    Value: !Ref dashDeleteAgent
+    Export:
+      Name: !Sub '${AWS::StackName}-dashDeleteAgent'
+
+  dashGetCommandsFunction:
+    Description: Lambda function name for getting commands
+    Value: !Ref dashGetCommands
+    Export:
+      Name: !Sub '${AWS::StackName}-dashGetCommands'
+
+  AgentTrackerTableName:
+    Description: DynamoDB table name for agent tracking
+    Value: !Ref AgentTracker
+    Export:
+      Name: !Sub '${AWS::StackName}-AgentTrackerTable'
+
+  AgentLogsTableName:
+    Description: DynamoDB table name for agent logs
+    Value: !Ref AgentLogs
+    Export:
+      Name: !Sub '${AWS::StackName}-AgentLogsTable'
+
+  AgentCommandsTableName:
+    Description: DynamoDB table name for agent commands
+    Value: !Ref AgentCommands
+    Export:
+      Name: !Sub '${AWS::StackName}-AgentCommandsTable'
+
+  AgentChatTableName:
+    Description: DynamoDB table name for agent chat
+    Value: !Ref AgentChat
+    Export:
+      Name: !Sub '${AWS::StackName}-AgentChatTable'
+
+  MemoryEventsTableName:
+    Description: DynamoDB table name for memory events
+    Value: !Ref MemoryEvents
+    Export:
+      Name: !Sub '${AWS::StackName}-MemoryEventsTable'

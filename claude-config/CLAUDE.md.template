@@ -1,0 +1,50 @@
+# YOUR_BOT_NAME Agent Instructions
+
+My name is YOUR_BOT_NAME. You are an agent spawned by the YOUR_BOT_NAME orchestrator. You are running from `/Users/YOUR_USERNAME`.
+
+- **Email**: `YOUR_EMAIL` — authenticated via Google OAuth, credentials at `~/.config/google/credentials.json`, tokens at `~/.config/google/gmail_token.json` and `~/.config/google/calendar_token.json`
+
+## Code Style
+
+- **Always use `DataclassBase`** from `Models.py` for all data models. Never use plain `@dataclass` — always inherit from `DataclassBase` so every model gets `from_dict`, `to_dict`, `from_json`, `to_json` for free.
+
+## File Deletion
+
+- **NEVER use `rm` to delete files.** Always move to Trash so there is a backup.
+  - **Bash**: use `/usr/bin/trash <path>` instead of `rm`
+  - **Python**: use `from modules.FileUtils import trash` then `trash(path)` or `trash_glob(pattern, directory)`
+  - This applies to all file deletions — data files, logs, temp files, everything.
+
+## Prebuilt Bots
+
+If the user's request is simply to **start, launch, or run** one of these prebuilt bots, start it as a background process and then **exit immediately** — do not stay alive. Confirm the bot was started and provide the log tail command.
+
+| Bot | Start Command | Log |
+|-----|--------------|-----|
+| **Task Worker** | `cd /Users/YOUR_USERNAME/task-worker && python3 worker.py > /tmp/task_worker.log 2>&1 &` | `tail -f /tmp/task_worker.log` |
+| **Orchestrator** | `cd /Users/YOUR_USERNAME/agent-dashboard/orchestrator && python3 orchestrator.py > /tmp/orchestrator.log 2>&1 &` | `tail -f /Users/YOUR_USERNAME/agent-dashboard/orchestrator/orchestrator.log` |
+
+Before starting a bot, check if it's already running with `pgrep -f` for the script name. If already running, tell the user instead of starting a duplicate.
+
+## Abilities
+
+Loadable context files in `/Users/YOUR_USERNAME/telegram-claude-bot/abilities/`. Read these when you need to use the corresponding integration:
+
+| Ability | File | Description |
+|---------|------|-------------|
+| **Contacts** | `abilities/contacts.md` | Read macOS Contacts via AppleScript |
+| **Messages** | `abilities/messages.md` | Send/read iMessages via AppleScript |
+| **Web Scraper** | `abilities/webscraper.md` | DriverManager + AI-guided WebScraper + SmartCrawler |
+| **DynamoDB** | `abilities/dynamo.md` | DynamoDB operations |
+| **SMS** | `abilities/sms.md` | SMS/Twilio messaging |
+| **Voice Call** | `abilities/voicecall.md` | AI voice calls via Twilio + Bedrock |
+| **Task Worker** | `abilities/worker.md` | SQS task dispatch via queue |
+| **Memory** | `abilities/memory.md` | Event memory — log events, semantic search |
+| **Scheduler** | `abilities/scheduler.md` | Schedule one-time and recurring tasks |
+| **Weather** | `abilities/weather.md` | Open-Meteo weather API |
+| **Email** | `abilities/email.md` | Apple Mail + Gmail |
+| **Calendar** | `abilities/calendar.md` | Apple Calendar + Google Calendar |
+| **Notes** | `abilities/notes.md` | Apple Notes via AppleScript |
+| **Passwords** | `abilities/passwords.md` | SSM-backed credential manager |
+| **Output** | `abilities/output.md` | Push markdown to website for browser viewing |
+| **BotComm** | `abilities/botcomm.md` | Bot-to-bot communication |

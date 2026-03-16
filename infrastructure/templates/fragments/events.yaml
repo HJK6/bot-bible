@@ -1,0 +1,33 @@
+Resources:
+  # EventBridge: Daily Summary at 12:01 AM Central (6:01 AM UTC)
+  DailySummaryRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: DailySummarySchedule
+      Description: Triggers daily memory summary at 12:01 AM Central
+      ScheduleExpression: 'cron(1 6 * * ? *)'
+      State: ENABLED
+      Targets:
+        - Id: BartimaeusRequestsQueue
+          Arn: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:BartimaeusRequests'
+          InputTransformer:
+            InputPathsMap:
+              trigger_time: '$.time'
+            InputTemplate: '{"repo":"memory-system","task":"generate_daily_summary","data":{"trigger_time":"<trigger_time>"}}'
+
+  DailySummaryQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Sub 'https://sqs.${AWS::Region}.amazonaws.com/${AWS::AccountId}/BartimaeusRequests'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:BartimaeusRequests'
+            Condition:
+              ArnEquals:
+                'aws:SourceArn': !GetAtt DailySummaryRule.Arn

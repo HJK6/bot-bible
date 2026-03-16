@@ -1,0 +1,465 @@
+#!/bin/bash
+# schedule — Standardized task scheduler for Bartimaeus (launchd-based)
+# Manages one-time and recurring scheduled tasks via macOS LaunchAgents.
+#
+# Usage:
+#   schedule once "<datetime|+Nh|+Nm|+Nd>" "<command>" [--tag <tag>]
+#   schedule recurring "<H:M> <weekdays|daily>" "<command>" [--tag <tag>]
+#   schedule list
+#   schedule remove <tag>
+#   schedule logs <tag>
+#
+# One-time examples:
+#   schedule once "+15h" "echo hello" --tag test-job
+#   schedule once "+30m" "echo quick" --tag quick-task
+#   schedule once "2026-02-12 01:20" "cd ~/aceable-agent && python3 aceable_bot.py &" --tag aceable-restart
+#
+# Recurring examples:
+#   schedule recurring "15:30 weekdays" "/Users/bartimaeus/trading-bot/eod_review.sh" --tag trading-eod
+#   schedule recurring "09:00 daily" "echo good morning" --tag morning
+#   schedule recurring "08:00 MWF" "echo mon-wed-fri" --tag mwf-task
+
+set -euo pipefail
+
+SCHEDULE_DIR="/Users/bartimaeus/.schedule"
+SCHEDULE_LOG="$SCHEDULE_DIR/jobs.log"
+PLIST_DIR="$HOME/Library/LaunchAgents"
+WRAPPER_DIR="$SCHEDULE_DIR/wrappers"
+PLIST_PREFIX="com.bartimaeus.schedule"
+
+mkdir -p "$SCHEDULE_DIR" "$WRAPPER_DIR"
+touch "$SCHEDULE_LOG"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  schedule once "<datetime|+Nh|+Nm|+Nd>" "<command>" [--tag <tag>]
+  schedule recurring "<H:M> <weekdays|daily|MWF|...>" "<command>" [--tag <tag>]
+  schedule list
+  schedule remove <tag>
+  schedule logs <tag>
+
+One-time: schedule once "+15h" "restart_bot.sh" --tag bot-restart
+Recurring: schedule recurring "15:30 weekdays" "eod_review.sh" --tag trading-eod
+EOF
+    exit 1
+}
+
+log_entry() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | $*" >> "$SCHEDULE_LOG"
+}
+
+# Parse relative time (+15h, +30m, +2d) or absolute datetime into components
+parse_datetime() {
+    local input="$1"
+    if [[ "$input" =~ ^\+([0-9]+)([hmd])$ ]]; then
+        local num="${BASH_REMATCH[1]}"
+        local unit="${BASH_REMATCH[2]}"
+        case "$unit" in
+            h) date -v+"${num}H" '+%Y %m %d %H %M' ;;
+            m) date -v+"${num}M" '+%Y %m %d %H %M' ;;
+            d) date -v+"${num}d" '+%Y %m %d %H %M' ;;
+        esac
+    else
+        date -j -f '%Y-%m-%d %H:%M' "$input" '+%Y %m %d %H %M' 2>/dev/null || {
+            echo "Invalid datetime: $input" >&2
+            exit 1
+        }
+    fi
+}
+
+# Format datetime for display
+format_datetime() {
+    local input="$1"
+    if [[ "$input" =~ ^\+([0-9]+)([hmd])$ ]]; then
+        local num="${BASH_REMATCH[1]}"
+        local unit="${BASH_REMATCH[2]}"
+        case "$unit" in
+            h) date -v+"${num}H" '+%Y-%m-%d %H:%M' ;;
+            m) date -v+"${num}M" '+%Y-%m-%d %H:%M' ;;
+            d) date -v+"${num}d" '+%Y-%m-%d %H:%M' ;;
+        esac
+    else
+        echo "$input"
+    fi
+}
+
+generate_tag() {
+    echo "job-$(date +%s)"
+}
+
+# Map day abbreviations to launchd Weekday numbers (0=Sunday)
+day_to_num() {
+    case "$1" in
+        Su|Sun) echo 0 ;; Mo|Mon|M) echo 1 ;; Tu|Tue) echo 2 ;;
+        We|Wed|W) echo 3 ;; Th|Thu) echo 4 ;; Fr|Fri|F) echo 5 ;;
+        Sa|Sat) echo 6 ;;
+        *) echo "" ;;
+    esac
+}
+
+create_wrapper() {
+    local tag="$1" cmd="$2" once="$3"
+    local wrapper="$WRAPPER_DIR/${tag}.sh"
+    local logfile="$SCHEDULE_DIR/${tag}.log"
+
+    cat > "$wrapper" <<WRAPPER_EOF
+#!/bin/bash
+# Scheduled task: $tag
+echo "\$(date '+%Y-%m-%d %H:%M:%S') | running | $tag" >> "$SCHEDULE_LOG"
+
+# Execute
+$cmd >> "$logfile" 2>&1
+EXIT_CODE=\$?
+
+echo "\$(date '+%Y-%m-%d %H:%M:%S') | completed (exit \$EXIT_CODE) | $tag" >> "$SCHEDULE_LOG"
+WRAPPER_EOF
+
+    # For one-time jobs, add self-cleanup
+    if [ "$once" = "true" ]; then
+        cat >> "$wrapper" <<CLEANUP_EOF
+
+# Self-cleanup for one-time job
+launchctl bootout gui/\$(id -u) "$PLIST_DIR/${PLIST_PREFIX}.${tag}.plist" 2>/dev/null || true
+rm -f "$PLIST_DIR/${PLIST_PREFIX}.${tag}.plist"
+rm -f "$wrapper"
+CLEANUP_EOF
+    fi
+
+    chmod +x "$wrapper"
+    echo "$wrapper"
+}
+
+cmd_once() {
+    local when_raw="$1"
+    local cmd="$2"
+    local tag="${3:-$(generate_tag)}"
+
+    local parts
+    parts=$(parse_datetime "$when_raw")
+    read -r year month day hour minute <<< "$parts"
+
+    local display_when
+    display_when=$(format_datetime "$when_raw")
+
+    local wrapper
+    wrapper=$(create_wrapper "$tag" "$cmd" "true")
+
+    local plist="$PLIST_DIR/${PLIST_PREFIX}.${tag}.plist"
+
+    # Strip leading zeros for plist integer values
+    month=$((10#$month))
+    day=$((10#$day))
+    hour=$((10#$hour))
+    minute=$((10#$minute))
+
+    cat > "$plist" <<PLIST_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${PLIST_PREFIX}.${tag}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>${wrapper}</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Month</key>
+        <integer>${month}</integer>
+        <key>Day</key>
+        <integer>${day}</integer>
+        <key>Hour</key>
+        <integer>${hour}</integer>
+        <key>Minute</key>
+        <integer>${minute}</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>${SCHEDULE_DIR}/${tag}.log</string>
+    <key>StandardErrorPath</key>
+    <string>${SCHEDULE_DIR}/${tag}.log</string>
+</dict>
+</plist>
+PLIST_EOF
+
+    launchctl bootstrap gui/$(id -u) "$plist" 2>/dev/null || launchctl load "$plist" 2>/dev/null
+
+    log_entry "scheduled | once | $tag | $display_when | $cmd"
+    echo "Scheduled one-time job [$tag] for $display_when"
+    echo "  Command: $cmd"
+    echo "  Log: $SCHEDULE_DIR/${tag}.log"
+}
+
+cmd_recurring() {
+    local schedule_expr="$1"
+    local cmd="$2"
+    local tag="${3:-$(generate_tag)}"
+
+    # Parse "HH:MM weekdays|daily|MWF|..."
+    local time_part day_part
+    time_part=$(echo "$schedule_expr" | awk '{print $1}')
+    day_part=$(echo "$schedule_expr" | awk '{print $2}')
+
+    local hour minute
+    hour=$(echo "$time_part" | cut -d: -f1)
+    minute=$(echo "$time_part" | cut -d: -f2)
+
+    # Strip leading zeros
+    hour=$((10#$hour))
+    minute=$((10#$minute))
+
+    local wrapper
+    wrapper=$(create_wrapper "$tag" "$cmd" "false")
+
+    local plist="$PLIST_DIR/${PLIST_PREFIX}.${tag}.plist"
+
+    # Unload existing if present
+    launchctl bootout gui/$(id -u) "$plist" 2>/dev/null || launchctl unload "$plist" 2>/dev/null || true
+
+    # Build StartCalendarInterval based on day specification
+    local calendar_xml=""
+    case "$day_part" in
+        hourly)
+            calendar_xml="    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Minute</key>
+        <integer>${minute}</integer>
+    </dict>"
+            ;;
+        daily|"")
+            calendar_xml="    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>${hour}</integer>
+        <key>Minute</key>
+        <integer>${minute}</integer>
+    </dict>"
+            ;;
+        weekdays)
+            calendar_xml="    <key>StartCalendarInterval</key>
+    <array>"
+            for dow in 1 2 3 4 5; do
+                calendar_xml="$calendar_xml
+        <dict>
+            <key>Weekday</key>
+            <integer>${dow}</integer>
+            <key>Hour</key>
+            <integer>${hour}</integer>
+            <key>Minute</key>
+            <integer>${minute}</integer>
+        </dict>"
+            done
+            calendar_xml="$calendar_xml
+    </array>"
+            ;;
+        weekends)
+            calendar_xml="    <key>StartCalendarInterval</key>
+    <array>"
+            for dow in 0 6; do
+                calendar_xml="$calendar_xml
+        <dict>
+            <key>Weekday</key>
+            <integer>${dow}</integer>
+            <key>Hour</key>
+            <integer>${hour}</integer>
+            <key>Minute</key>
+            <integer>${minute}</integer>
+        </dict>"
+            done
+            calendar_xml="$calendar_xml
+    </array>"
+            ;;
+        *)
+            # Parse individual day letters: MWF, MTuThF, etc.
+            # Split by uppercase letters
+            local days=()
+            local remaining="$day_part"
+            while [ -n "$remaining" ]; do
+                # Match 1-2 char day abbreviations
+                local matched=""
+                for try_len in 3 2 1; do
+                    local candidate="${remaining:0:$try_len}"
+                    local num
+                    num=$(day_to_num "$candidate")
+                    if [ -n "$num" ]; then
+                        days+=("$num")
+                        remaining="${remaining:$try_len}"
+                        matched="true"
+                        break
+                    fi
+                done
+                if [ -z "$matched" ]; then
+                    echo "Unknown day abbreviation in: $day_part" >&2
+                    exit 1
+                fi
+            done
+
+            calendar_xml="    <key>StartCalendarInterval</key>
+    <array>"
+            for dow in "${days[@]}"; do
+                calendar_xml="$calendar_xml
+        <dict>
+            <key>Weekday</key>
+            <integer>${dow}</integer>
+            <key>Hour</key>
+            <integer>${hour}</integer>
+            <key>Minute</key>
+            <integer>${minute}</integer>
+        </dict>"
+            done
+            calendar_xml="$calendar_xml
+    </array>"
+            ;;
+    esac
+
+    cat > "$plist" <<PLIST_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${PLIST_PREFIX}.${tag}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>${wrapper}</string>
+    </array>
+${calendar_xml}
+    <key>StandardOutPath</key>
+    <string>${SCHEDULE_DIR}/${tag}.log</string>
+    <key>StandardErrorPath</key>
+    <string>${SCHEDULE_DIR}/${tag}.log</string>
+</dict>
+</plist>
+PLIST_EOF
+
+    launchctl bootstrap gui/$(id -u) "$plist" 2>/dev/null || launchctl load "$plist" 2>/dev/null
+
+    log_entry "scheduled | recurring | $tag | $schedule_expr | $cmd"
+    echo "Scheduled recurring job [$tag]: $schedule_expr"
+    echo "  Command: $cmd"
+    echo "  Log: $SCHEDULE_DIR/${tag}.log"
+}
+
+cmd_list() {
+    local list_script="/Users/bartimaeus/bin/schedule-list"
+    if [ -x "$list_script" ]; then
+        "$list_script" "$@"
+    else
+        # Fallback: basic list
+        echo "=== Active Scheduled Jobs ==="
+        local found=false
+        for plist in "$PLIST_DIR"/${PLIST_PREFIX}.*.plist; do
+            [ -f "$plist" ] || continue
+            found=true
+            local label
+            label=$(basename "$plist" .plist)
+            local tag="${label#${PLIST_PREFIX}.}"
+            local loaded="inactive"
+            if launchctl print gui/$(id -u)/"$label" &>/dev/null; then
+                loaded="active"
+            fi
+            local schedule_info=""
+            if grep -q "Month" "$plist" 2>/dev/null; then
+                schedule_info="one-time"
+            else
+                schedule_info="recurring"
+            fi
+            echo "  [$tag] ($schedule_info, $loaded)"
+        done
+        if [ "$found" = false ]; then
+            echo "  No scheduled jobs"
+        fi
+        echo ""
+        echo "=== Crontab Jobs ==="
+        crontab -l 2>/dev/null | grep -v '^#' | grep -v '^$' || echo "  None"
+        echo ""
+        echo "=== Job History (last 15) ==="
+        tail -15 "$SCHEDULE_LOG" 2>/dev/null || echo "  No history"
+    fi
+}
+
+cmd_remove() {
+    local tag="$1"
+    local plist="$PLIST_DIR/${PLIST_PREFIX}.${tag}.plist"
+
+    if [ -f "$plist" ]; then
+        launchctl bootout gui/$(id -u) "$plist" 2>/dev/null || launchctl unload "$plist" 2>/dev/null || true
+        rm -f "$plist"
+    fi
+    rm -f "$WRAPPER_DIR/${tag}.sh"
+    rm -f "$SCHEDULE_DIR/${tag}.log"
+
+    log_entry "removed | $tag"
+    echo "Removed job [$tag]"
+}
+
+sync_dashboard() {
+    # Sync schedule data to S3 for dashboard (fire-and-forget)
+    local list_script="/Users/bartimaeus/bin/schedule-list"
+    if [ -x "$list_script" ]; then
+        "$list_script" --sync &>/dev/null &
+    fi
+}
+
+cmd_logs() {
+    local tag="$1"
+    local logfile="$SCHEDULE_DIR/${tag}.log"
+    if [ -f "$logfile" ]; then
+        cat "$logfile"
+    else
+        echo "No logs for [$tag]"
+    fi
+}
+
+# --- Main ---
+[ $# -lt 1 ] && usage
+
+ACTION="$1"
+shift
+
+case "$ACTION" in
+    once)
+        [ $# -lt 2 ] && usage
+        WHEN="$1"; CMD="$2"; shift 2
+        TAG=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --tag) TAG="$2"; shift 2 ;;
+                *) shift ;;
+            esac
+        done
+        cmd_once "$WHEN" "$CMD" "$TAG"
+        sync_dashboard
+        ;;
+    recurring)
+        [ $# -lt 2 ] && usage
+        SCHED="$1"; CMD="$2"; shift 2
+        TAG=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --tag) TAG="$2"; shift 2 ;;
+                *) shift ;;
+            esac
+        done
+        cmd_recurring "$SCHED" "$CMD" "$TAG"
+        sync_dashboard
+        ;;
+    list)
+        cmd_list "$@"
+        ;;
+    remove)
+        [ $# -lt 1 ] && usage
+        cmd_remove "$1"
+        sync_dashboard
+        ;;
+    logs)
+        [ $# -lt 1 ] && usage
+        cmd_logs "$1"
+        ;;
+    *)
+        usage
+        ;;
+esac

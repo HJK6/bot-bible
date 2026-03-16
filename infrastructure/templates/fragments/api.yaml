@@ -1,0 +1,17 @@
+Resources:
+  AgentDashboardApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: AgentDashboardApi
+      StageName: prod
+      OpenApiVersion: '3.0.1'
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/YOUR_COGNITO_USER_POOL_ID"
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"

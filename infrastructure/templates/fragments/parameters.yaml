@@ -1,0 +1,7 @@
+Parameters:
+  HandlersVersion:
+    Type: String
+    Description: Version ID for handlers zip in S3
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for bartimaeus.quest (us-east-1)

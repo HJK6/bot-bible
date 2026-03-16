@@ -1,0 +1,411 @@
+Resources:
+  # Lambda Functions for Agent Dashboard
+  # Logical IDs must match existing stack resources to enable in-place update
+
+  dashGetAgents:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetAgents
+      Handler: handlers.tracker.getAgentsHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetAgents
+            Method: POST
+
+  dashGetBots:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetBots
+      Handler: handlers.tracker.getBotsHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetBots
+            Method: POST
+
+  dashGetUsage:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetUsage
+      Handler: handlers.tracker.getUsageHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetUsage
+            Method: POST
+
+  dashGetScheduledJobs:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetScheduledJobs
+      Handler: handlers.tracker.getScheduledJobsHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetScheduledJobs
+            Method: POST
+
+  dashGetAgentLogs:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetAgentLogs
+      Handler: handlers.tracker.getAgentLogsHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetAgentLogs
+            Method: POST
+
+  dashGetAgentChat:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetAgentChat
+      Handler: handlers.tracker.getAgentChatHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetAgentChat
+            Method: POST
+
+  dashCreateCommand:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashCreateCommand
+      Handler: handlers.tracker.createCommandHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashCreateCommand
+            Method: POST
+
+  dashUpdateAgent:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashUpdateAgent
+      Handler: handlers.tracker.updateAgentHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashUpdateAgent
+            Method: POST
+
+  dashDeleteAgent:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashDeleteAgent
+      Handler: handlers.tracker.deleteAgentHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashDeleteAgent
+            Method: POST
+
+  dashGetTrashedAgents:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetTrashedAgents
+      Handler: handlers.tracker.getTrashedAgentsHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetTrashedAgents
+            Method: POST
+
+  dashRestoreAgent:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashRestoreAgent
+      Handler: handlers.tracker.restoreAgentHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashRestoreAgent
+            Method: POST
+
+  dashGetCommands:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetCommands
+      Handler: handlers.tracker.getCommandsHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+
+  dashRegisterPushToken:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashRegisterPushToken
+      Handler: handlers.tracker.registerPushTokenHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashRegisterPushToken
+            Method: POST
+
+  dashGetOutput:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetOutput
+      Handler: handlers.output.getOutputHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          MEDIA_BUCKET: !Ref ChatMediaBucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetOutput
+            Method: POST
+
+  dashGetMemoryTree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetMemoryTree
+      Handler: handlers.memory.getMemoryTreeHandler
+      Timeout: 30
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          MEDIA_BUCKET: !Ref ChatMediaBucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetMemoryTree
+            Method: POST
+
+  dashGetMemoryFile:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetMemoryFile
+      Handler: handlers.memory.getMemoryFileHandler
+      Timeout: 10
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          MEDIA_BUCKET: !Ref ChatMediaBucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetMemoryFile
+            Method: POST
+
+  dashGetMemoryIndex:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetMemoryIndex
+      Handler: handlers.memory.getMemoryIndexHandler
+      Timeout: 10
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          MEDIA_BUCKET: !Ref ChatMediaBucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetMemoryIndex
+            Method: POST
+
+  stocksGetAll:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: stocksGetAll
+      Handler: handlers.stocks.getStocksHandler
+      MemorySize: 256
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /stocksGetAll
+            Method: POST
+
+  stocksGetVolumeShocks:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: stocksGetVolumeShocks
+      Handler: handlers.stocks.getVolumeShocksHandler
+      MemorySize: 256
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /stocksGetVolumeShocks
+            Method: POST
+
+  stocksGetTrades:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: stocksGetTrades
+      Handler: handlers.stocks.getTradesHandler
+      MemorySize: 256
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /stocksGetTrades
+            Method: POST
+
+  dashGetProjects:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetProjects
+      Handler: handlers.projects.getProjectsHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetProjects
+            Method: POST
+
+  dashGetProject:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: dashGetProject
+      Handler: handlers.projects.getProjectHandler
+      CodeUri:
+        Bucket: "altum-deployment-assets"
+        Key: "dashboard-handlers.zip"
+        Version: !Ref HandlersVersion
+      Role: !GetAtt DashboardLambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AgentDashboardApi
+            Path: /dashGetProject
+            Method: POST
+

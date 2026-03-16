@@ -1,0 +1,364 @@
+#!/bin/bash
+# bart-bootstrap — Restore Bartimaeus agent on a fresh Mac from S3 + SSM + GitHub
+#
+# Prerequisites: AWS CLI configured, Python 3.13+, git
+#
+# Usage:
+#   aws s3 cp s3://bartimaeus-sync/bin/bart-bootstrap /tmp/bart-bootstrap
+#   chmod +x /tmp/bart-bootstrap && /tmp/bart-bootstrap
+
+set -euo pipefail
+
+BUCKET="bartimaeus-sync"
+REGION="us-east-1"
+SSM_PREFIX="/bartimaeus/sync/"
+HOME_DIR="$HOME"
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+log()   { echo -e "${GREEN}[✓]${NC} $1"; }
+warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
+error() { echo -e "${RED}[✗]${NC} $1"; }
+header(){ echo -e "\n${GREEN}═══ $1 ═══${NC}"; }
+
+# ── Phase 1: Prerequisites ──────────────────────────────────────────────────
+
+header "Phase 1: Checking prerequisites"
+
+for cmd in aws git; do
+    if ! command -v "$cmd" &>/dev/null; then
+        error "$cmd is required but not installed"
+        exit 1
+    fi
+    log "$cmd found: $(command -v "$cmd")"
+done
+
+# Check Python 3.13+
+PYTHON=""
+for p in python3.13 python3 python; do
+    if command -v "$p" &>/dev/null; then
+        ver=$("$p" --version 2>&1 | grep -oE '[0-9]+\.[0-9]+')
+        major=$(echo "$ver" | cut -d. -f1)
+        minor=$(echo "$ver" | cut -d. -f2)
+        if [ "$major" -ge 3 ] && [ "$minor" -ge 13 ]; then
+            PYTHON="$p"
+            break
+        fi
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    error "Python 3.13+ is required. Install from python.org"
+    exit 1
+fi
+log "Python: $PYTHON ($($PYTHON --version))"
+
+# Check AWS access
+if ! aws s3 ls "s3://$BUCKET/" --region "$REGION" &>/dev/null; then
+    error "Cannot access s3://$BUCKET/ — check AWS credentials"
+    exit 1
+fi
+log "AWS access verified"
+
+# ── Phase 2: Directory structure ─────────────────────────────────────────────
+
+header "Phase 2: Creating directory structure"
+
+dirs=(
+    "$HOME_DIR/bin"
+    "$HOME_DIR/.claude/projects/-Users-bartimaeus/memory"
+    "$HOME_DIR/.config/google"
+    "$HOME_DIR/.config/gh"
+    "$HOME_DIR/.ssh"
+    "$HOME_DIR/.bart-sync"
+    "$HOME_DIR/.venvs"
+    "$HOME_DIR/.schedule/wrappers"
+)
+
+for d in "${dirs[@]}"; do
+    mkdir -p "$d"
+    log "Created $d"
+done
+
+# ── Phase 3: SSH keys from SSM ──────────────────────────────────────────────
+
+header "Phase 3: Restoring SSH keys"
+
+restore_ssm() {
+    local ssm_suffix="$1"
+    local dest="$2"
+    local perms="${3:-644}"
+
+    local ssm_name="${SSM_PREFIX}${ssm_suffix}"
+    local value
+    value=$(aws ssm get-parameter --name "$ssm_name" --with-decryption --query 'Parameter.Value' --output text --region "$REGION" 2>/dev/null) || {
+        warn "SSM parameter not found: $ssm_name"
+        return 1
+    }
+
+    mkdir -p "$(dirname "$dest")"
+    echo "$value" > "$dest"
+    chmod "$perms" "$dest"
+    log "Restored $ssm_suffix -> $dest"
+}
+
+restore_ssm "ssh/private_key" "$HOME_DIR/.ssh/id_ed25519" "600"
+restore_ssm "ssh/public_key" "$HOME_DIR/.ssh/id_ed25519.pub" "644"
+restore_ssm "ssh/known_hosts" "$HOME_DIR/.ssh/known_hosts" "644"
+
+# Add key to agent
+eval "$(ssh-agent -s)" &>/dev/null
+ssh-add "$HOME_DIR/.ssh/id_ed25519" 2>/dev/null && log "SSH key added to agent" || warn "Could not add SSH key to agent"
+
+# ── Phase 4: Pull config from S3 ────────────────────────────────────────────
+
+header "Phase 4: Pulling config files from S3"
+
+# Get manifest first (has source machine's home_dir for path rewriting)
+aws s3 cp "s3://$BUCKET/manifest.json" "$HOME_DIR/.bart-sync/manifest.json" --region "$REGION" --quiet
+log "Downloaded manifest.json"
+
+# Determine source home_dir for path rewriting
+SRC_HOME=$(python3 -c "
+import json, platform
+m = json.load(open('$HOME_DIR/.bart-sync/manifest.json'))
+hostname = platform.node()
+for machine, info in m.get('machines', {}).items():
+    if machine != hostname:
+        print(info.get('home_dir', ''))
+        break
+" 2>/dev/null || echo "")
+
+# S3 prefix -> local directory mapping
+declare -A PREFIX_MAP=(
+    ["claude/"]="$HOME_DIR/.claude/"
+    ["project-claude-md/"]="$HOME_DIR/"
+    ["memory/"]="$HOME_DIR/.claude/projects/-Users-bartimaeus/memory/"
+    ["abilities/"]="$HOME_DIR/telegram-claude-bot/abilities/"
+    ["bin/"]="$HOME_DIR/bin/"
+    ["schedule-wrappers/"]="$HOME_DIR/.schedule/wrappers/"
+)
+
+for prefix in "${!PREFIX_MAP[@]}"; do
+    dest="${PREFIX_MAP[$prefix]}"
+    mkdir -p "$dest"
+    aws s3 sync "s3://$BUCKET/$prefix" "$dest" --region "$REGION" --quiet 2>/dev/null || true
+    count=$(aws s3 ls "s3://$BUCKET/$prefix" --region "$REGION" 2>/dev/null | wc -l | tr -d ' ')
+    log "Synced $prefix ($count files) -> $dest"
+done
+
+# Also grab requirements.txt
+aws s3 cp "s3://$BUCKET/requirements.txt" "$HOME_DIR/.bart-sync/requirements.txt" --region "$REGION" --quiet 2>/dev/null || true
+
+# Rewrite paths if home dir differs
+if [ -n "$SRC_HOME" ] && [ "$SRC_HOME" != "$HOME_DIR" ]; then
+    header "Rewriting paths: $SRC_HOME -> $HOME_DIR"
+    # Files that may contain hardcoded paths
+    path_files=(
+        "$HOME_DIR/.claude/CLAUDE.md"
+        "$HOME_DIR/.claude/settings.json"
+        "$HOME_DIR/.claude/settings.local.json"
+        "$HOME_DIR/CLAUDE.md"
+    )
+    # Also rewrite bin scripts and schedule wrappers
+    for f in "$HOME_DIR"/bin/*; do
+        [ -f "$f" ] && path_files+=("$f")
+    done
+    for f in "$HOME_DIR"/.schedule/wrappers/*.sh; do
+        [ -f "$f" ] && path_files+=("$f")
+    done
+    # Also rewrite memory files that might reference paths
+    for f in "$HOME_DIR"/.claude/projects/-Users-bartimaeus/memory/*.md; do
+        [ -f "$f" ] && path_files+=("$f")
+    done
+
+    for f in "${path_files[@]}"; do
+        if [ -f "$f" ] && grep -q "$SRC_HOME" "$f" 2>/dev/null; then
+            sed -i '' "s|$SRC_HOME|$HOME_DIR|g" "$f"
+            log "Rewrote paths in $(basename "$f")"
+        fi
+    done
+fi
+
+# Make bin scripts executable
+chmod +x "$HOME_DIR"/bin/* 2>/dev/null || true
+log "Made bin scripts executable"
+
+# ── Phase 5: Clone repos ────────────────────────────────────────────────────
+
+header "Phase 5: Cloning repositories"
+
+# Read repos from manifest
+repos=$($PYTHON -c "
+import json
+m = json.load(open('$HOME_DIR/.bart-sync/manifest.json'))
+for r in m.get('repos', []):
+    print(f\"{r['name']} {r['org']} {r['branch']}\")
+")
+
+while IFS=' ' read -r name org branch; do
+    dest="$HOME_DIR/$name"
+    if [ -d "$dest/.git" ]; then
+        log "$name already cloned"
+        continue
+    fi
+    echo -n "  Cloning $name ($branch)... "
+    if git clone -q --branch "$branch" "git@github.com:$org/$name.git" "$dest" 2>/dev/null; then
+        echo -e "${GREEN}done${NC}"
+    elif git clone -q --branch "$branch" "https://github.com/$org/$name.git" "$dest" 2>/dev/null; then
+        echo -e "${GREEN}done (https)${NC}"
+    else
+        echo -e "${RED}failed${NC}"
+        warn "Could not clone $name — check access"
+    fi
+done <<< "$repos"
+
+# ── Phase 6: Restore credentials from SSM ───────────────────────────────────
+
+header "Phase 6: Restoring credentials"
+
+# .env files
+env_creds=(
+    "env/telegram-claude-bot:$HOME_DIR/telegram-claude-bot/.env"
+    "env/task-worker:$HOME_DIR/task-worker/.env"
+    "env/aceable-agent:$HOME_DIR/aceable-agent/.env"
+    "env/bartimaeus-mobile:$HOME_DIR/bartimaeus-mobile/.env"
+    "env/land-sales-portal:$HOME_DIR/land-sales-portal/.env"
+    "env/altum-realty-app:$HOME_DIR/altum-realty-app/.env"
+)
+
+for entry in "${env_creds[@]}"; do
+    IFS=':' read -r suffix dest <<< "$entry"
+    restore_ssm "$suffix" "$dest" || true
+done
+
+# Google OAuth tokens
+google_creds=(
+    "google/credentials:$HOME_DIR/.config/google/credentials.json"
+    "google/gmail_token:$HOME_DIR/.config/google/gmail_token.json"
+    "google/calendar_token:$HOME_DIR/.config/google/calendar_token.json"
+    "google/user_gmail_token:$HOME_DIR/.config/google/user_gmail_token.json"
+    "google/user_calendar_token:$HOME_DIR/.config/google/user_calendar_token.json"
+    "google/gujju_gmail_token:$HOME_DIR/.config/google/gujju_gmail_token.json"
+    "google/gujju_calendar_token:$HOME_DIR/.config/google/gujju_calendar_token.json"
+)
+
+for entry in "${google_creds[@]}"; do
+    IFS=':' read -r suffix dest <<< "$entry"
+    restore_ssm "$suffix" "$dest" || true
+done
+
+# GitHub CLI config
+restore_ssm "gh/config" "$HOME_DIR/.config/gh/config.yml" || true
+restore_ssm "gh/hosts" "$HOME_DIR/.config/gh/hosts.yml" || true
+
+# ── Phase 7: Python venv ────────────────────────────────────────────────────
+
+header "Phase 7: Setting up Python virtual environment"
+
+VENV_DIR="$HOME_DIR/.venvs/global"
+if [ ! -d "$VENV_DIR" ]; then
+    $PYTHON -m venv "$VENV_DIR"
+    log "Created venv at $VENV_DIR"
+else
+    log "Venv already exists at $VENV_DIR"
+fi
+
+# Install packages
+REQ_FILE="$HOME_DIR/.bart-sync/requirements.txt"
+if [ -f "$REQ_FILE" ]; then
+    log "Installing packages from requirements.txt..."
+    "$VENV_DIR/bin/pip" install --upgrade pip -q
+    "$VENV_DIR/bin/pip" install -r "$REQ_FILE" -q 2>/dev/null || warn "Some packages may have failed to install"
+    log "Packages installed"
+else
+    warn "No requirements.txt found — skipping pip install"
+fi
+
+# ── Phase 8: Homebrew packages ──────────────────────────────────────────────
+
+header "Phase 8: Installing Homebrew packages"
+
+if command -v brew &>/dev/null; then
+    brew_pkgs=$($PYTHON -c "
+import json
+m = json.load(open('$HOME_DIR/.bart-sync/manifest.json'))
+for p in m.get('brew_packages', []):
+    print(p)
+")
+    while IFS= read -r pkg; do
+        if brew list "$pkg" &>/dev/null; then
+            log "$pkg already installed"
+        else
+            echo -n "  Installing $pkg... "
+            if brew install "$pkg" -q 2>/dev/null; then
+                echo -e "${GREEN}done${NC}"
+            else
+                echo -e "${RED}failed${NC}"
+            fi
+        fi
+    done <<< "$brew_pkgs"
+else
+    warn "Homebrew not installed — install from https://brew.sh"
+    warn "Then run: brew install gh tmux jq trash"
+fi
+
+# ── Phase 9: Shell aliases ──────────────────────────────────────────────────
+
+header "Phase 9: Configuring shell"
+
+ZSHRC="$HOME_DIR/.zshrc"
+touch "$ZSHRC"
+
+add_line() {
+    local line="$1"
+    if ! grep -qF "$line" "$ZSHRC" 2>/dev/null; then
+        echo "$line" >> "$ZSHRC"
+        log "Added to .zshrc: $line"
+    else
+        log "Already in .zshrc: $line"
+    fi
+}
+
+add_line 'export PATH="$HOME/bin:$HOME/.venvs/global/bin:$PATH"'
+add_line 'alias py="$HOME/.venvs/global/bin/python"'
+add_line 'alias pip="$HOME/.venvs/global/bin/pip"'
+
+# ── Phase 10: Register daily sync ───────────────────────────────────────────
+
+header "Phase 10: Registering daily sync"
+
+SCHEDULE="$HOME_DIR/bin/schedule"
+if [ -x "$SCHEDULE" ]; then
+    "$SCHEDULE" recurring "04:00 daily" "$VENV_DIR/bin/python $HOME_DIR/bin/bart-sync push" --tag bart-sync 2>/dev/null && \
+        log "Daily sync registered (04:00 push)" || \
+        warn "Could not register daily sync — run manually: schedule recurring '04:00 daily' 'bart-sync push' --tag bart-sync"
+else
+    warn "schedule not found — register daily sync manually after setup"
+fi
+
+# ── Initialize sync state ───────────────────────────────────────────────────
+
+header "Initializing sync state"
+
+"$VENV_DIR/bin/python" "$HOME_DIR/bin/bart-sync" push 2>/dev/null && \
+    log "Initial sync state recorded" || \
+    warn "Could not initialize sync state — run 'bart-sync push' manually"
+
+# ── Done ─────────────────────────────────────────────────────────────────────
+
+header "Bootstrap complete!"
+echo ""
+echo "  Machine:    $(hostname)"
+echo "  Home:       $HOME_DIR"
+echo "  Python:     $VENV_DIR/bin/python"
+echo "  Sync state: $HOME_DIR/.bart-sync/"
+echo ""
+echo "  Next steps:"
+echo "    1. source ~/.zshrc"
+echo "    2. bart-sync status"
+echo "    3. Verify repos and credentials"
+echo ""

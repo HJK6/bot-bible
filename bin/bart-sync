@@ -1,0 +1,659 @@
+#!/usr/bin/env python3
+"""bart-sync — Backup & sync Bartimaeus agent config to S3 + SSM.
+
+Usage:
+    bart-sync init           Create S3 bucket, enable versioning, first full push + cred backup
+    bart-sync push           Upload locally-changed files to S3
+    bart-sync pull           Download remotely-changed files from S3
+    bart-sync status         Show what's changed locally vs remotely
+    bart-sync backup-creds   Store all credentials in SSM
+    bart-sync restore-creds  Restore credentials from SSM to local files
+"""
+
+import hashlib
+import json
+import os
+import platform
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import boto3
+from botocore.exceptions import ClientError
+
+# ── Constants ──────────────────────────────────────────────────────────────────
+
+BUCKET = "bartimaeus-sync"
+REGION = "us-east-1"
+SSM_PREFIX = "/bartimaeus/sync/"
+HOME = Path.home()
+HOSTNAME = platform.node()
+STATE_DIR = HOME / ".bart-sync"
+STATE_FILE = STATE_DIR / f"state-{HOSTNAME}.json"
+
+# ── File manifest: (s3_prefix, local_path, is_glob) ──────────────────────────
+
+def _expand_sync_files():
+    """Build list of (s3_key, local_path) tuples for all synced files."""
+    files = []
+
+    # Claude config files
+    for name in ["CLAUDE.md", "settings.json", "settings.local.json"]:
+        local = HOME / ".claude" / name
+        if local.exists():
+            files.append((f"claude/{name}", local))
+
+    # Project-level CLAUDE.md
+    local = HOME / "CLAUDE.md"
+    if local.exists():
+        files.append(("project-claude-md/CLAUDE.md", local))
+
+    # Memory files
+    memory_dir = HOME / ".claude" / "projects" / "-Users-bartimaeus" / "memory"
+    if memory_dir.exists():
+        for f in sorted(memory_dir.iterdir()):
+            if f.is_file() and f.suffix in (".md", ".json"):
+                files.append((f"memory/{f.name}", f))
+
+    # Abilities
+    abilities_dir = HOME / "telegram-claude-bot" / "abilities"
+    if abilities_dir.exists():
+        for f in sorted(abilities_dir.iterdir()):
+            if f.is_file() and f.suffix == ".md":
+                files.append((f"abilities/{f.name}", f))
+
+    # Bin scripts (exclude gh binary, __pycache__)
+    bin_dir = HOME / "bin"
+    if bin_dir.exists():
+        for f in sorted(bin_dir.iterdir()):
+            if f.is_file() and f.name not in ("gh",) and not f.name.startswith("."):
+                files.append((f"bin/{f.name}", f))
+
+    # Schedule wrappers
+    wrappers_dir = HOME / ".schedule" / "wrappers"
+    if wrappers_dir.exists():
+        for f in sorted(wrappers_dir.iterdir()):
+            if f.is_file() and f.suffix == ".sh":
+                files.append((f"schedule-wrappers/{f.name}", f))
+
+    return files
+
+
+# ── Credential mappings: (ssm_suffix, local_path) ────────────────────────────
+
+CREDENTIAL_MAP = [
+    ("env/telegram-claude-bot",    HOME / "telegram-claude-bot" / ".env"),
+    ("env/task-worker",            HOME / "task-worker" / ".env"),
+    ("env/aceable-agent",          HOME / "aceable-agent" / ".env"),
+    ("env/bartimaeus-mobile",      HOME / "bartimaeus-mobile" / ".env"),
+    ("env/land-sales-portal",      HOME / "land-sales-portal" / ".env"),
+    ("env/altum-realty-app",       HOME / "altum-realty-app" / ".env"),
+    ("google/credentials",         HOME / ".config" / "google" / "credentials.json"),
+    ("google/gmail_token",         HOME / ".config" / "google" / "gmail_token.json"),
+    ("google/calendar_token",      HOME / ".config" / "google" / "calendar_token.json"),
+    ("google/user_gmail_token",    HOME / ".config" / "google" / "user_gmail_token.json"),
+    ("google/user_calendar_token", HOME / ".config" / "google" / "user_calendar_token.json"),
+    ("google/gujju_gmail_token",   HOME / ".config" / "google" / "gujju_gmail_token.json"),
+    ("google/gujju_calendar_token",HOME / ".config" / "google" / "gujju_calendar_token.json"),
+    ("ssh/private_key",            HOME / ".ssh" / "id_ed25519"),
+    ("ssh/public_key",             HOME / ".ssh" / "id_ed25519.pub"),
+    ("ssh/known_hosts",            HOME / ".ssh" / "known_hosts"),
+    ("gh/config",                  HOME / ".config" / "gh" / "config.yml"),
+    ("gh/hosts",                   HOME / ".config" / "gh" / "hosts.yml"),
+]
+
+# Repos to clone on bootstrap (name, org, branch)
+REPOS = [
+    ("land-bot",              "YOUR_GITHUB_ORG", "master"),
+    ("telegram-claude-bot",   "YOUR_GITHUB_ORG", "master"),
+    ("agent-dashboard",       "YOUR_GITHUB_ORG", "master"),
+    ("bartimaeus-mobile",     "YOUR_GITHUB_ORG", "main"),
+    ("stocks",                "YOUR_GITHUB_ORG", "master"),
+    ("task-worker",           "YOUR_GITHUB_ORG", "master"),
+    ("aceable-agent",         "YOUR_GITHUB_ORG", "master"),
+    ("memory-system",         "YOUR_GITHUB_ORG", "master"),
+    ("smart-scraper",         "YOUR_GITHUB_ORG", "main"),
+    ("land-sales-portal",     "YOUR_GITHUB_ORG", "master"),
+]
+
+BREW_PACKAGES = ["gh", "tmux", "jq", "trash"]
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def md5_file(path):
+    """Compute MD5 hex digest of a file."""
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_state():
+    """Load sync state from disk."""
+    if STATE_FILE.exists():
+        return json.loads(STATE_FILE.read_text())
+    return {"files": {}, "last_push": None, "last_pull": None}
+
+
+def save_state(state):
+    """Save sync state to disk."""
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, indent=2, default=str))
+
+
+def s3_client():
+    return boto3.client("s3", region_name=REGION)
+
+
+def ssm_client():
+    return boto3.client("ssm", region_name=REGION)
+
+
+def get_s3_etags(s3):
+    """Get dict of s3_key -> etag for all objects in the bucket."""
+    etags = {}
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=BUCKET):
+        for obj in page.get("Contents", []):
+            # Strip quotes from ETag
+            etags[obj["Key"]] = obj["ETag"].strip('"')
+    return etags
+
+
+def rewrite_paths(content, src_home, dst_home):
+    """Replace home directory paths in file content for portability."""
+    if isinstance(content, bytes):
+        return content.replace(src_home.encode(), dst_home.encode())
+    return content.replace(src_home, dst_home)
+
+
+def generate_requirements():
+    """Generate pip freeze output and save to a temp location, return path."""
+    pip_path = HOME / ".venvs" / "global" / "bin" / "pip"
+    if not pip_path.exists():
+        pip_path = Path("pip")  # fallback
+    try:
+        result = subprocess.run(
+            [str(pip_path), "freeze"],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0:
+            req_path = STATE_DIR / "requirements.txt"
+            STATE_DIR.mkdir(parents=True, exist_ok=True)
+            req_path.write_text(result.stdout)
+            return req_path
+    except Exception as e:
+        print(f"  Warning: could not generate requirements.txt: {e}")
+    return None
+
+
+def build_manifest():
+    """Build manifest.json with repo list, machine info, brew packages."""
+    return {
+        "repos": [{"name": r[0], "org": r[1], "branch": r[2]} for r in REPOS],
+        "machines": {
+            HOSTNAME: {
+                "home_dir": str(HOME),
+                "last_push": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "platform": platform.system(),
+                "arch": platform.machine(),
+            }
+        },
+        "brew_packages": BREW_PACKAGES,
+    }
+
+
+# ── Commands ──────────────────────────────────────────────────────────────────
+
+def cmd_init():
+    """Create S3 bucket, enable versioning, first full push + cred backup."""
+    s3 = s3_client()
+
+    # Create bucket
+    print(f"Creating S3 bucket: {BUCKET}")
+    try:
+        s3.create_bucket(Bucket=BUCKET)
+        print(f"  Bucket created")
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code in ("BucketAlreadyOwnedByYou", "BucketAlreadyExists"):
+            print(f"  Bucket already exists")
+        else:
+            raise
+
+    # Enable versioning
+    print("Enabling versioning...")
+    s3.put_bucket_versioning(
+        Bucket=BUCKET,
+        VersioningConfiguration={"Status": "Enabled"}
+    )
+    print("  Versioning enabled")
+
+    # Block public access
+    print("Blocking public access...")
+    s3.put_public_access_block(
+        Bucket=BUCKET,
+        PublicAccessBlockConfiguration={
+            "BlockPublicAcls": True,
+            "IgnorePublicAcls": True,
+            "BlockPublicPolicy": True,
+            "RestrictPublicBuckets": True,
+        }
+    )
+    print("  Public access blocked")
+
+    # First full push
+    print()
+    cmd_push(force=True)
+
+    # Backup credentials
+    print()
+    cmd_backup_creds()
+
+    print("\nInit complete!")
+
+
+def cmd_push(force=False):
+    """Upload locally-changed files to S3."""
+    s3 = s3_client()
+    state = load_state()
+    file_state = state.get("files", {})
+    sync_files = _expand_sync_files()
+
+    # Generate and include requirements.txt
+    req_path = generate_requirements()
+    if req_path:
+        sync_files.append(("requirements.txt", req_path))
+
+    # Build and upload manifest
+    manifest = build_manifest()
+    # Merge with existing manifest to preserve other machines' entries
+    try:
+        resp = s3.get_object(Bucket=BUCKET, Key="manifest.json")
+        existing = json.loads(resp["Body"].read())
+        existing["machines"][HOSTNAME] = manifest["machines"][HOSTNAME]
+        existing["repos"] = manifest["repos"]
+        existing["brew_packages"] = manifest["brew_packages"]
+        manifest = existing
+    except ClientError:
+        pass  # No existing manifest
+
+    manifest_path = STATE_DIR / "manifest.json"
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+    sync_files.append(("manifest.json", manifest_path))
+
+    pushed = 0
+    skipped = 0
+    errors = 0
+
+    print(f"Pushing files to s3://{BUCKET}/")
+    for s3_key, local_path in sync_files:
+        if not local_path.exists():
+            continue
+
+        local_mtime = local_path.stat().st_mtime
+        local_md5 = md5_file(local_path)
+
+        prev = file_state.get(s3_key, {})
+        prev_mtime = prev.get("local_mtime", 0)
+        prev_md5 = prev.get("local_md5", "")
+
+        # Skip if unchanged (unless force)
+        if not force and local_md5 == prev_md5 and local_mtime <= prev_mtime:
+            skipped += 1
+            continue
+
+        try:
+            with open(local_path, "rb") as f:
+                s3.put_object(Bucket=BUCKET, Key=s3_key, Body=f.read())
+
+            # Get the ETag of what we just uploaded
+            head = s3.head_object(Bucket=BUCKET, Key=s3_key)
+            s3_etag = head["ETag"].strip('"')
+
+            file_state[s3_key] = {
+                "local_mtime": local_mtime,
+                "local_md5": local_md5,
+                "s3_etag": s3_etag,
+                "local_path": str(local_path),
+            }
+            pushed += 1
+            print(f"  + {s3_key}")
+        except Exception as e:
+            errors += 1
+            print(f"  ! {s3_key}: {e}")
+
+    state["files"] = file_state
+    state["last_push"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    save_state(state)
+    print(f"\nPushed: {pushed}, Skipped (unchanged): {skipped}, Errors: {errors}")
+
+
+def cmd_pull():
+    """Download remotely-changed files from S3."""
+    s3 = s3_client()
+    state = load_state()
+    file_state = state.get("files", {})
+    s3_etags = get_s3_etags(s3)
+    sync_files = _expand_sync_files()
+
+    # Also pull files that exist in S3 but not locally tracked yet
+    known_keys = {s3_key for s3_key, _ in sync_files}
+
+    # Get source machine's home_dir from manifest for path rewriting
+    src_home = None
+    try:
+        resp = s3.get_object(Bucket=BUCKET, Key="manifest.json")
+        manifest = json.loads(resp["Body"].read())
+        for machine, info in manifest.get("machines", {}).items():
+            if machine != HOSTNAME:
+                src_home = info.get("home_dir")
+                break
+    except ClientError:
+        pass
+
+    pulled = 0
+    skipped = 0
+    conflicts = 0
+
+    print(f"Pulling files from s3://{BUCKET}/")
+    for s3_key, remote_etag in s3_etags.items():
+        # Skip manifest and requirements (generated files)
+        if s3_key in ("manifest.json", "requirements.txt"):
+            # Still pull these but to their state dir locations
+            if s3_key == "manifest.json":
+                dest = STATE_DIR / "manifest.json"
+            elif s3_key == "requirements.txt":
+                dest = STATE_DIR / "requirements.txt"
+            else:
+                continue
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            resp = s3.get_object(Bucket=BUCKET, Key=s3_key)
+            dest.write_bytes(resp["Body"].read())
+            continue
+
+        # Determine local path from s3_key
+        local_path = _s3_key_to_local_path(s3_key)
+        if local_path is None:
+            continue
+
+        prev = file_state.get(s3_key, {})
+        prev_etag = prev.get("s3_etag", "")
+        prev_md5 = prev.get("local_md5", "")
+
+        # S3 hasn't changed since last sync
+        if remote_etag == prev_etag:
+            skipped += 1
+            continue
+
+        # S3 changed — check if local also changed (conflict)
+        if local_path.exists():
+            local_md5 = md5_file(local_path)
+            if local_md5 != prev_md5 and prev_md5 != "":
+                # Both changed — keep local, warn
+                conflicts += 1
+                print(f"  ~ {s3_key} (CONFLICT: keeping local, S3 version preserved by versioning)")
+                # Update s3_etag so we don't keep warning
+                file_state[s3_key]["s3_etag"] = remote_etag
+                continue
+
+        # Download
+        try:
+            resp = s3.get_object(Bucket=BUCKET, Key=s3_key)
+            content = resp["Body"].read()
+
+            # Rewrite paths if pulling from a different machine
+            if src_home and src_home != str(HOME):
+                content = rewrite_paths(content, src_home, str(HOME))
+
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            local_path.write_bytes(content)
+
+            local_md5 = md5_file(local_path)
+            file_state[s3_key] = {
+                "local_mtime": local_path.stat().st_mtime,
+                "local_md5": local_md5,
+                "s3_etag": remote_etag,
+                "local_path": str(local_path),
+            }
+            pulled += 1
+            print(f"  v {s3_key}")
+        except Exception as e:
+            print(f"  ! {s3_key}: {e}")
+
+    state["files"] = file_state
+    state["last_pull"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    save_state(state)
+    print(f"\nPulled: {pulled}, Skipped (unchanged): {skipped}, Conflicts: {conflicts}")
+
+
+def _s3_key_to_local_path(s3_key):
+    """Map an S3 key back to its local file path."""
+    parts = s3_key.split("/", 1)
+    if len(parts) != 2:
+        return None
+
+    prefix, name = parts
+
+    mapping = {
+        "claude":            HOME / ".claude",
+        "project-claude-md": HOME,
+        "memory":            HOME / ".claude" / "projects" / "-Users-bartimaeus" / "memory",
+        "abilities":         HOME / "telegram-claude-bot" / "abilities",
+        "bin":               HOME / "bin",
+        "schedule-wrappers": HOME / ".schedule" / "wrappers",
+    }
+
+    base = mapping.get(prefix)
+    if base:
+        return base / name
+    return None
+
+
+def cmd_status():
+    """Show what's changed locally vs remotely."""
+    s3 = s3_client()
+    state = load_state()
+    file_state = state.get("files", {})
+    sync_files = _expand_sync_files()
+
+    # Get remote etags
+    try:
+        s3_etags = get_s3_etags(s3)
+    except ClientError as e:
+        print(f"Error accessing S3: {e}")
+        return
+
+    local_changed = []
+    remote_changed = []
+    conflicts = []
+    in_sync = []
+    local_only = []
+    remote_only = []
+
+    known_s3_keys = set()
+
+    for s3_key, local_path in sync_files:
+        known_s3_keys.add(s3_key)
+
+        if not local_path.exists():
+            if s3_key in s3_etags:
+                remote_only.append(s3_key)
+            continue
+
+        local_md5 = md5_file(local_path)
+        remote_etag = s3_etags.get(s3_key)
+        prev = file_state.get(s3_key, {})
+        prev_md5 = prev.get("local_md5", "")
+        prev_etag = prev.get("s3_etag", "")
+
+        local_mod = local_md5 != prev_md5 if prev_md5 else True
+        remote_mod = remote_etag != prev_etag if prev_etag and remote_etag else False
+
+        if not remote_etag:
+            local_only.append(s3_key)
+        elif local_mod and remote_mod:
+            conflicts.append(s3_key)
+        elif local_mod:
+            local_changed.append(s3_key)
+        elif remote_mod:
+            remote_changed.append(s3_key)
+        else:
+            in_sync.append(s3_key)
+
+    # Check for remote-only files
+    for s3_key in s3_etags:
+        if s3_key not in known_s3_keys and s3_key not in ("manifest.json", "requirements.txt"):
+            if _s3_key_to_local_path(s3_key):
+                remote_only.append(s3_key)
+
+    # Print report
+    print(f"Sync status ({HOSTNAME})")
+    print(f"Last push: {state.get('last_push', 'never')}")
+    print(f"Last pull: {state.get('last_pull', 'never')}")
+    print()
+
+    if in_sync:
+        print(f"In sync: {len(in_sync)} files")
+
+    if local_changed:
+        print(f"\nLocal changes (need push):")
+        for k in local_changed:
+            print(f"  > {k}")
+
+    if remote_changed:
+        print(f"\nRemote changes (need pull):")
+        for k in remote_changed:
+            print(f"  < {k}")
+
+    if conflicts:
+        print(f"\nConflicts (both changed):")
+        for k in conflicts:
+            print(f"  ~ {k}")
+
+    if local_only:
+        print(f"\nLocal only (not yet pushed):")
+        for k in local_only:
+            print(f"  + {k}")
+
+    if remote_only:
+        print(f"\nRemote only (not yet pulled):")
+        for k in remote_only:
+            print(f"  - {k}")
+
+    total = len(in_sync) + len(local_changed) + len(remote_changed) + len(conflicts) + len(local_only) + len(remote_only)
+    print(f"\nTotal tracked: {total} files")
+
+    if not local_changed and not remote_changed and not conflicts and not local_only and not remote_only:
+        print("Everything is in sync!")
+
+
+def cmd_backup_creds():
+    """Store all credentials in SSM Parameter Store."""
+    ssm = ssm_client()
+    stored = 0
+    skipped = 0
+    errors = 0
+
+    print("Backing up credentials to SSM...")
+    for suffix, local_path in CREDENTIAL_MAP:
+        ssm_name = f"{SSM_PREFIX}{suffix}"
+
+        if not local_path.exists():
+            skipped += 1
+            print(f"  - {suffix} (file not found: {local_path})")
+            continue
+
+        try:
+            value = local_path.read_text()
+            if not value.strip():
+                skipped += 1
+                print(f"  - {suffix} (empty file)")
+                continue
+
+            ssm.put_parameter(
+                Name=ssm_name,
+                Value=value,
+                Type="SecureString",
+                Overwrite=True,
+                Description=f"Bartimaeus credential: {suffix}",
+            )
+            stored += 1
+            print(f"  + {suffix}")
+        except Exception as e:
+            errors += 1
+            print(f"  ! {suffix}: {e}")
+
+    print(f"\nStored: {stored}, Skipped: {skipped}, Errors: {errors}")
+
+
+def cmd_restore_creds():
+    """Restore credentials from SSM to local files."""
+    ssm = ssm_client()
+    restored = 0
+    skipped = 0
+    errors = 0
+
+    print("Restoring credentials from SSM...")
+    for suffix, local_path in CREDENTIAL_MAP:
+        ssm_name = f"{SSM_PREFIX}{suffix}"
+
+        try:
+            resp = ssm.get_parameter(Name=ssm_name, WithDecryption=True)
+            value = resp["Parameter"]["Value"]
+
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            local_path.write_text(value)
+
+            # Set restrictive permissions for SSH keys
+            if "ssh/private" in suffix:
+                os.chmod(local_path, 0o600)
+            elif "ssh/" in suffix:
+                os.chmod(local_path, 0o644)
+
+            restored += 1
+            print(f"  + {suffix} -> {local_path}")
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ParameterNotFound":
+                skipped += 1
+                print(f"  - {suffix} (not in SSM)")
+            else:
+                errors += 1
+                print(f"  ! {suffix}: {e}")
+        except Exception as e:
+            errors += 1
+            print(f"  ! {suffix}: {e}")
+
+    print(f"\nRestored: {restored}, Skipped: {skipped}, Errors: {errors}")
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+    commands = {
+        "init":          cmd_init,
+        "push":          cmd_push,
+        "pull":          cmd_pull,
+        "status":        cmd_status,
+        "backup-creds":  cmd_backup_creds,
+        "restore-creds": cmd_restore_creds,
+    }
+
+    if cmd not in commands:
+        print(f"Unknown command: {cmd}")
+        print(__doc__)
+        sys.exit(1)
+
+    commands[cmd]()
+
+
+if __name__ == "__main__":
+    main()
