@@ -94,6 +94,16 @@ export default function AgentDetailScreen() {
   }, [serverMessages, optimisticMessages]);
 
   const flatListRef = useRef<any>(null);
+  const prevMessageCount = useRef(0);
+  const isNearBottom = useRef(true);
+
+  useEffect(() => {
+    const count = allMessages.length;
+    if (count > prevMessageCount.current && isNearBottom.current) {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: count > 1 }), 100);
+    }
+    prevMessageCount.current = count;
+  }, [allMessages.length]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -214,8 +224,13 @@ export default function AgentDetailScreen() {
               keyExtractor={(item, idx) => `${item.timestamp}-${idx}`}
               renderItem={({ item }) => <ChatBubble message={item} />}
               contentContainerStyle={styles.chatContent}
-              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
               onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+              onScroll={(e) => {
+                const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+                const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
+                isNearBottom.current = distanceFromBottom < 150;
+              }}
+              scrollEventThrottle={100}
               refreshControl={
                 <RefreshControl
                   refreshing={refreshing}
