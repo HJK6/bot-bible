@@ -95,18 +95,49 @@ export default function AgentDetailScreen() {
 
   const flatListRef = useRef<any>(null);
   const isNearBottom = useRef(true);
-  const hasScrolledInitial = useRef(false);
+  const needsScrollToBottom = useRef(true);
 
-  // Scroll to bottom on initial load and when new messages arrive (if near bottom)
-  useEffect(() => {
-    if (allMessages.length > 0 && isNearBottom.current) {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: hasScrolledInitial.current }), 100);
-      hasScrolledInitial.current = true;
+  const scrollToBottom = useCallback(() => {
+    if (Platform.OS === 'web') {
+      const doScroll = () => {
+        let best: Element | null = null;
+        let bestDepth = 0;
+        const divs = document.querySelectorAll('div');
+        for (const div of divs) {
+          if (div.scrollHeight > div.clientHeight + 50) {
+            const overflow = window.getComputedStyle(div).overflowY;
+            if (overflow === 'auto' || overflow === 'scroll') {
+              let depth = 0;
+              let el: Element | null = div;
+              while (el.parentElement) { depth++; el = el.parentElement; }
+              if (depth > bestDepth) { bestDepth = depth; best = div; }
+            }
+          }
+        }
+        if (best) (best as HTMLElement).scrollTop = (best as HTMLElement).scrollHeight;
+      };
+      doScroll();
+      requestAnimationFrame(doScroll);
+      setTimeout(doScroll, 100);
+      setTimeout(doScroll, 300);
+      setTimeout(doScroll, 600);
+    } else {
+      flatListRef.current?.scrollToEnd({ animated: false });
     }
-  }, [allMessages]);
+  }, []);
+
+  // When new messages arrive and user is near bottom, scroll down
+  const prevCount = useRef(allMessages.length);
+  useEffect(() => {
+    if (allMessages.length > prevCount.current && isNearBottom.current) {
+      needsScrollToBottom.current = true;
+    }
+    prevCount.current = allMessages.length;
+  }, [allMessages.length]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
+    needsScrollToBottom.current = true;
     isNearBottom.current = true;
     await refetchChat();
     setRefreshing(false);
@@ -225,11 +256,18 @@ export default function AgentDetailScreen() {
               keyExtractor={(item, idx) => `${item.timestamp}-${idx}`}
               renderItem={({ item }) => <ChatBubble message={item} />}
               contentContainerStyle={styles.chatContent}
-              onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+              onContentSizeChange={() => {
+                if (needsScrollToBottom.current && allMessages.length > 0) {
+                  scrollToBottom();
+                }
+              }}
               onScroll={(e) => {
                 const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
                 const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
                 isNearBottom.current = distanceFromBottom < 150;
+                if (distanceFromBottom > 150) {
+                  needsScrollToBottom.current = false;
+                }
               }}
               scrollEventThrottle={100}
               refreshControl={
