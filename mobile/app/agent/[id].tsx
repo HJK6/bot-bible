@@ -94,19 +94,20 @@ export default function AgentDetailScreen() {
   }, [serverMessages, optimisticMessages]);
 
   const flatListRef = useRef<any>(null);
-  const prevMessageCount = useRef(0);
   const isNearBottom = useRef(true);
+  const hasScrolledInitial = useRef(false);
 
+  // Scroll to bottom on initial load and when new messages arrive (if near bottom)
   useEffect(() => {
-    const count = allMessages.length;
-    if (count > prevMessageCount.current && isNearBottom.current) {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: count > 1 }), 100);
+    if (allMessages.length > 0 && isNearBottom.current) {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: hasScrolledInitial.current }), 100);
+      hasScrolledInitial.current = true;
     }
-    prevMessageCount.current = count;
-  }, [allMessages.length]);
+  }, [allMessages]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
+    isNearBottom.current = true;
     await refetchChat();
     setRefreshing(false);
   }, [refetchChat]);
