@@ -93,7 +93,7 @@ export default function AgentDetailScreen() {
     return [...serverMessages, ...pendingOptimistic];
   }, [serverMessages, optimisticMessages]);
 
-  const invertedMessages = useMemo(() => [...allMessages].reverse(), [allMessages]);
+  const flatListRef = useRef<any>(null);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -209,11 +209,13 @@ export default function AgentDetailScreen() {
         wrapDesktop(
           <>
             <FlatList
-              data={invertedMessages}
+              ref={flatListRef}
+              data={allMessages}
               keyExtractor={(item, idx) => `${item.timestamp}-${idx}`}
               renderItem={({ item }) => <ChatBubble message={item} />}
-              inverted
               contentContainerStyle={styles.chatContent}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+              onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
               refreshControl={
                 <RefreshControl
                   refreshing={refreshing}
@@ -221,7 +223,7 @@ export default function AgentDetailScreen() {
                   tintColor={Colors.primary}
                 />
               }
-              ListHeaderComponent={
+              ListFooterComponent={
                 waitingForResponse ? <TypingIndicator agentName={agent?.title} /> : null
               }
               ListEmptyComponent={
@@ -805,7 +807,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
-    transform: [{ scaleY: -1 }],
   },
   emptyChatText: {
     color: Colors.textMuted,

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -59,7 +59,7 @@ export default function MockAgentDetailScreen() {
     return [...serverMessages, ...pendingOptimistic];
   }, [serverMessages, optimisticMessages]);
 
-  const invertedMessages = useMemo(() => [...allMessages].reverse(), [allMessages]);
+  const flatListRef = useRef<any>(null);
 
   const handleSend = useCallback(
     async (message: string) => {
@@ -156,11 +156,13 @@ export default function MockAgentDetailScreen() {
         wrapDesktop(
           <>
             <FlatList
-              data={invertedMessages}
+              ref={flatListRef}
+              data={allMessages}
               keyExtractor={(item, idx) => `${item.timestamp}-${idx}`}
               renderItem={({ item }) => <ChatBubble message={item} />}
-              inverted
               contentContainerStyle={styles.chatContent}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+              onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
               ListEmptyComponent={
                 <View style={styles.emptyChat}>
                   <Text style={styles.emptyChatText}>No messages yet. Send a message to start.</Text>
@@ -689,7 +691,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
-    transform: [{ scaleY: -1 }],
   },
   emptyChatText: {
     color: Colors.textMuted,
