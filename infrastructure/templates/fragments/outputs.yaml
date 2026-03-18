@@ -19,7 +19,7 @@ Outputs:
 
   FrontendBucketUrl:
     Description: Frontend S3 Website URL
-    Value: !Sub 'https://bartimaeus.quest'
+    Value: !Sub 'https://YOUR_DOMAIN'
     Export:
       Name: !Sub '${AWS::StackName}-FrontendBucketUrl'
 

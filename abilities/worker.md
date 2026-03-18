@@ -1,21 +1,21 @@
 # Task Worker Bot
 
-SQS-driven task runner that polls the BartimaeusRequests queue and dispatches tasks to repo-specific task files.
+SQS-driven task runner that polls the BotRequests queue and dispatches tasks to repo-specific task files.
 
 ## Location
 
-Repo: `/Users/bartimaeus/task-worker/`
+Repo: `/Users/YOUR_USERNAME/task-worker/`
 
 ## How to Start
 
 ```bash
-cd /Users/bartimaeus/task-worker
+cd /Users/YOUR_USERNAME/task-worker
 caffeinate -dims python3 worker.py > /tmp/task_worker.log 2>&1 &
 ```
 
 ## How It Works
 
-1. Long-polls `BartimaeusRequests` SQS queue (20s intervals)
+1. Long-polls `BotRequests` SQS queue (20s intervals)
 2. Receives messages with format: `{"repo": "land-bot", "task": "taskName", "data": {...}}`
 3. Maps repo name to local path, `git pull --ff-only` to get latest code
 4. Imports `tasks/{taskName}.py` from the repo and calls `run(data)`
@@ -23,15 +23,15 @@ caffeinate -dims python3 worker.py > /tmp/task_worker.log 2>&1 &
 
 ## SQS Queue
 
-- **Queue**: `BartimaeusRequests`
-- **URL**: `https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BartimaeusRequests`
+- **Queue**: `BotRequests`
+- **URL**: `https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BotRequests`
 - **Visibility timeout**: 300s (5 min per task before retry)
 
 ## Sending Tasks
 
 ```bash
 aws sqs send-message \
-  --queue-url "https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BartimaeusRequests" \
+  --queue-url "https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BotRequests" \
   --message-body '{"repo": "land-bot", "task": "testTask", "data": {"test": true}}' \
   --region us-east-1
 ```
@@ -41,7 +41,7 @@ Or from Python:
 import boto3, json
 sqs = boto3.client("sqs", region_name="us-east-1")
 sqs.send_message(
-    QueueUrl="https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BartimaeusRequests",
+    QueueUrl="https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BotRequests",
     MessageBody=json.dumps({"repo": "land-bot", "task": "aggregatePropertyData", "data": {"account_id": "123", "county": "DALLAS"}})
 )
 ```
@@ -50,7 +50,7 @@ sqs.send_message(
 
 | Repo | Local Path | Available Tasks |
 |------|-----------|-----------------|
-| `land-bot` | `/Users/bartimaeus/land-bot` | `testTask`, `aggregatePropertyData`, `refreshPropertyData`, `hydrate_skiptrace_data`, `scrape_preforeclosures`, `scrape_taxsales` |
+| `land-bot` | `/Users/YOUR_USERNAME/land-bot` | `testTask`, `aggregatePropertyData`, `refreshPropertyData`, `hydrate_skiptrace_data`, `scrape_preforeclosures`, `scrape_taxsales` |
 
 To add a new repo, add it to `REPO_MAP` in `worker.py`.
 

@@ -10,7 +10,7 @@ from handlers.apigw import apigw_adapter
 
 logger = logging.getLogger(__name__)
 
-BUCKET = os.environ.get("MEDIA_BUCKET", "bartimaeus-chat-media")
+BUCKET = os.environ.get("MEDIA_BUCKET", "YOUR_BOT_NAME-chat-media")
 PREFIX = "memory/files/"
 INDEX_KEY = "memory/index.json"
 

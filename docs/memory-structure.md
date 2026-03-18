@@ -189,10 +189,10 @@ To set up memory for a new Claude Code instance:
 
 ## Sync
 
-Memory files sync to S3 via `bart-sync`:
+Memory files sync to S3 via `bot-sync`:
 ```bash
-bart-sync push    # Upload changed memory files
-bart-sync pull    # Download changes
+bot-sync push    # Upload changed memory files
+bot-sync pull    # Download changes
 ```
 
 This enables memory portability across machines.

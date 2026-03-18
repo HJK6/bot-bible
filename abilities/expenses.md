@@ -6,7 +6,7 @@ Manage business expenses for tax filing. Receipts stored in S3, metadata in Dyna
 
 ```python
 import sys
-sys.path.insert(0, "/Users/bartimaeus/telegram-claude-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/telegram-claude-bot")
 
 from modules.expenses import ExpenseManager, EXPENSE_CATEGORIES
 
@@ -18,7 +18,7 @@ em = ExpenseManager()
 | Resource | Type | Details |
 |----------|------|---------|
 | `Expenses` | DynamoDB Table | Key: `expense_id` (HASH). GSIs: `CategoryIndex` (category + date), `YearIndex` (year + date) |
-| `bartimaeus-expense-receipts` | S3 Bucket | Receipt images stored as `receipts/{expense_id}.{ext}` |
+| `YOUR_BOT_NAME-expense-receipts` | S3 Bucket | Receipt images stored as `receipts/{expense_id}.{ext}` |
 
 ## Expense Categories
 

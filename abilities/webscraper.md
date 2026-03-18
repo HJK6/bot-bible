@@ -17,11 +17,11 @@ pip install selenium undetected-chromedriver beautifulsoup4 html5lib lxml certif
 
 ## Source
 
-- DriverManager: `/Users/bartimaeus/telegram-claude-bot/modules/WebManager.py`
-- WebScraper: `/Users/bartimaeus/telegram-claude-bot/modules/web_scraper.py`
-- SmartCrawler: `/Users/bartimaeus/telegram-claude-bot/modules/smart_crawler.py`
-- Models: `/Users/bartimaeus/telegram-claude-bot/Models.py` (CrawlerRecipe, RecipeStep, SmartCrawlResult)
-- Recipes: `/Users/bartimaeus/telegram-claude-bot/recipes/*.json`
+- DriverManager: `/Users/YOUR_USERNAME/telegram-claude-bot/modules/WebManager.py`
+- WebScraper: `/Users/YOUR_USERNAME/telegram-claude-bot/modules/web_scraper.py`
+- SmartCrawler: `/Users/YOUR_USERNAME/telegram-claude-bot/modules/smart_crawler.py`
+- Models: `/Users/YOUR_USERNAME/telegram-claude-bot/Models.py` (CrawlerRecipe, RecipeStep, SmartCrawlResult)
+- Recipes: `/Users/YOUR_USERNAME/telegram-claude-bot/recipes/*.json`
 
 ---
 

@@ -9,7 +9,7 @@ Uses the OAuth token from macOS Keychain to make a minimal API call (`max_tokens
 ## Quick Usage
 
 ```bash
-py /Users/bartimaeus/telegram-claude-bot/abilities/check_usage.py
+py /Users/YOUR_USERNAME/telegram-claude-bot/abilities/check_usage.py
 ```
 
 ## Key Headers
@@ -36,7 +36,7 @@ def get_usage() -> dict:
     # Get token from Keychain
     raw = subprocess.check_output([
         'security', 'find-generic-password',
-        '-s', 'Claude Code-credentials', '-a', 'bartimaeus', '-w'
+        '-s', 'Claude Code-credentials', '-a', 'YOUR_BOT_NAME', '-w'
     ], text=True).strip()
     token = json.loads(raw)['claudeAiOauth']['accessToken']
     plan = json.loads(raw)['claudeAiOauth'].get('subscriptionType', 'unknown')

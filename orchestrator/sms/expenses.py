@@ -15,7 +15,7 @@ from .storage import SmsStorage
 
 logger = logging.getLogger("orchestrator.sms.expenses")
 
-CLAUDE_CMD = "/Users/bartimaeus/.local/bin/claude"
+CLAUDE_CMD = "/Users/YOUR_USERNAME/.local/bin/claude"
 TMUX_CMD = "/opt/homebrew/bin/tmux"
 
 

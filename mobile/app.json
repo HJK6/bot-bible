@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Bartimaeus",
-    "slug": "bartimaeus-mobile",
+    "name": "YOUR_BOT_NAME",
+    "slug": "YOUR_BOT_NAME-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "bartimaeus",
+    "scheme": "YOUR_BOT_NAME",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -26,7 +26,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "quest.bartimaeus.mobile",
+      "bundleIdentifier": "YOUR_BUNDLE_ID",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -50,8 +50,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Bartimaeus to access your photo library to send images.",
-          "cameraPermission": "Allow Bartimaeus to take photos to send as messages."
+          "photosPermission": "Allow YOUR_BOT_NAME to access your photo library to send images.",
+          "cameraPermission": "Allow YOUR_BOT_NAME to take photos to send as messages."
         }
       ]
     ],
@@ -64,12 +64,12 @@
     "experiments": {
       "typedRoutes": true
     },
-    "owner": "bartimaeusbot",
+    "owner": "YOUR_EXPO_OWNER",
     "android": {
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "quest.bartimaeus.mobile"
+      "package": "YOUR_BUNDLE_ID"
     }
   }
 }

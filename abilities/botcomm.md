@@ -7,7 +7,7 @@ Send and receive messages with friend bots via authenticated API with session tr
 ```
 Inbound:  Friend Bot → HTTPS POST → botWebhook Lambda (Function URL) → OrchestratorInbox SQS → Orchestrator → BotHandler
 Outbound: BotHandler → HTTPS POST → Friend Bot's webhook URL
-Data:     S3 bartimaeus-chat-media/bot-data/{bot_id}/ — presigned URLs
+Data:     S3 YOUR_BOT_NAME-chat-media/bot-data/{bot_id}/ — presigned URLs
 Auth:     API key (SHA-256 hash in SSM) + HMAC-SHA256 outbound signatures
 ```
 
@@ -15,14 +15,14 @@ Auth:     API key (SHA-256 hash in SSM) + HMAC-SHA256 outbound signatures
 
 | Component | Path |
 |-----------|------|
-| Bot Handler | `/Users/bartimaeus/agent-dashboard/orchestrator/bot/handler.py` |
-| Models | `/Users/bartimaeus/agent-dashboard/orchestrator/bot/models.py` |
-| Storage | `/Users/bartimaeus/agent-dashboard/orchestrator/bot/storage.py` |
-| Send Utility | `/Users/bartimaeus/agent-dashboard/orchestrator/bot/send.py` |
-| Registration CLI | `/Users/bartimaeus/agent-dashboard/orchestrator/bot/register_bot.py` |
-| Table Setup | `/Users/bartimaeus/agent-dashboard/orchestrator/bot/setup.py` |
-| Webhook Lambda | `/Users/bartimaeus/agent-dashboard/handlers/bot_webhook.py` |
-| Friend Bot Guide | `/Users/bartimaeus/agent-dashboard/orchestrator/bot/FRIEND_BOT_GUIDE.md` |
+| Bot Handler | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/bot/handler.py` |
+| Models | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/bot/models.py` |
+| Storage | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/bot/storage.py` |
+| Send Utility | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/bot/send.py` |
+| Registration CLI | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/bot/register_bot.py` |
+| Table Setup | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/bot/setup.py` |
+| Webhook Lambda | `/Users/YOUR_USERNAME/agent-dashboard/handlers/bot_webhook.py` |
+| Friend Bot Guide | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/bot/FRIEND_BOT_GUIDE.md` |
 
 ## DynamoDB Tables
 
@@ -65,14 +65,14 @@ Auth:     API key (SHA-256 hash in SSM) + HMAC-SHA256 outbound signatures
 Use the `register_bot.py` CLI to generate an invite, then share the token with your friend:
 
 ```bash
-cd /Users/bartimaeus/agent-dashboard
+cd /Users/YOUR_USERNAME/agent-dashboard
 py orchestrator/bot/register_bot.py invite --name "Aria Bot" --scopes chat,data,knowledge
 ```
 
 This generates a one-time registration token (`reg_...`), stores it in SSM, and prints instructions to share with the friend. The token expires in 24 hours.
 
 **Flow:**
-1. Share the token + Bartimaeus webhook URL with the friend
+1. Share the token + YOUR_BOT_NAME webhook URL with the friend
 2. Friend POSTs `message_type: "register"` with the token and their webhook URL
 3. Lambda validates token → challenges webhook → delivers API key + HMAC secret
 4. Bot is registered in DynamoDB + SSM automatically
@@ -98,14 +98,14 @@ py orchestrator/bot/register_bot.py revoke aria-bot    # Delete key + suspend
 
 ```python
 import sys, asyncio
-sys.path.insert(0, "/Users/bartimaeus/agent-dashboard")
-sys.path.insert(0, "/Users/bartimaeus/land-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/agent-dashboard")
+sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 from orchestrator.bot.handler import BotHandler
 
 handler = BotHandler()
 
 # Simple chat message
-asyncio.run(handler.send_message("friend-bot-001", "Hello from Bartimaeus!"))
+asyncio.run(handler.send_message("friend-bot-001", "Hello from YOUR_BOT_NAME!"))
 
 # Data response with S3 attachment
 upload = handler.generate_upload_url("friend-bot-001", "weather_data.json")
@@ -121,8 +121,8 @@ asyncio.run(handler.send_message(
 
 CLI:
 ```bash
-cd /Users/bartimaeus/agent-dashboard
-PYTHONPATH=/Users/bartimaeus/land-bot py orchestrator/bot/send.py friend-bot-001 "Hello!"
+cd /Users/YOUR_USERNAME/agent-dashboard
+PYTHONPATH=/Users/YOUR_USERNAME/land-bot py orchestrator/bot/send.py friend-bot-001 "Hello!"
 py orchestrator/bot/send.py friend-bot-001 "Here's the data" --type data_response --attachment /tmp/data.json
 ```
 
@@ -130,15 +130,15 @@ py orchestrator/bot/send.py friend-bot-001 "Here's the data" --type data_respons
 
 | Parameter | Purpose |
 |-----------|---------|
-| `/bartimaeus/botcomm/keys/{bot_id}` | SHA-256 hash of bot's API key |
-| `/bartimaeus/botcomm/hmac/{bot_id}` | Per-bot HMAC secret (created during registration) |
-| `/bartimaeus/botcomm/secret` | HMAC-SHA256 secret for signing outbound messages |
-| `/bartimaeus/botcomm/reg/{token}` | Registration token (JSON: name, scopes, expires_at). Deleted after use |
+| `/YOUR_BOT_NAME/botcomm/keys/{bot_id}` | SHA-256 hash of bot's API key |
+| `/YOUR_BOT_NAME/botcomm/hmac/{bot_id}` | Per-bot HMAC secret (created during registration) |
+| `/YOUR_BOT_NAME/botcomm/secret` | HMAC-SHA256 secret for signing outbound messages |
+| `/YOUR_BOT_NAME/botcomm/reg/{token}` | Registration token (JSON: name, scopes, expires_at). Deleted after use |
 
 ## Security
 
 - **Inbound**: Friend bot sends `api_key` in payload → Lambda hashes it → compares against SSM-stored hash
-- **Outbound**: Bartimaeus signs payload with HMAC-SHA256 using shared secret → `X-Bartimaeus-Signature` header
+- **Outbound**: YOUR_BOT_NAME signs payload with HMAC-SHA256 using shared secret → `X-YOUR_BOT_NAME-Signature` header
 - **S3**: Presigned URLs scoped to `bot-data/{bot_id}/` prefix, 5min PUT / 1hr GET expiry
 - Unregistered bot_ids are rejected at the Lambda level (403)
 - Suspended bots are rejected at the handler level
@@ -147,6 +147,6 @@ py orchestrator/bot/send.py friend-bot-001 "Here's the data" --type data_respons
 
 - Bot webhook URL: output of CloudFormation stack `agent-dashboard-infrastructure`, key `BotWebhookUrl`
 - Messages are auto-routed to the orchestrator's agent system for processing
-- `capability_query` messages get an automatic response with Bartimaeus's capability list
+- `capability_query` messages get an automatic response with YOUR_BOT_NAME's capability list
 - Integrated into orchestrator — bot messages handled automatically when orchestrator runs
 - Friend bot guide at `orchestrator/bot/FRIEND_BOT_GUIDE.md` — send to friend bot for setup

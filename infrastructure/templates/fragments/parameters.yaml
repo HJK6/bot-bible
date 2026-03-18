@@ -4,4 +4,4 @@ Parameters:
     Description: Version ID for handlers zip in S3
   CertificateArn:
     Type: String
-    Description: ACM certificate ARN for bartimaeus.quest (us-east-1)
+    Description: ACM certificate ARN for YOUR_DOMAIN (us-east-1)

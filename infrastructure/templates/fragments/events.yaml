@@ -8,8 +8,8 @@ Resources:
       ScheduleExpression: 'cron(1 6 * * ? *)'
       State: ENABLED
       Targets:
-        - Id: BartimaeusRequestsQueue
-          Arn: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:BartimaeusRequests'
+        - Id: BotRequestsQueue
+          Arn: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:BotRequests'
           InputTransformer:
             InputPathsMap:
               trigger_time: '$.time'
@@ -19,7 +19,7 @@ Resources:
     Type: AWS::SQS::QueuePolicy
     Properties:
       Queues:
-        - !Sub 'https://sqs.${AWS::Region}.amazonaws.com/${AWS::AccountId}/BartimaeusRequests'
+        - !Sub 'https://sqs.${AWS::Region}.amazonaws.com/${AWS::AccountId}/BotRequests'
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -27,7 +27,7 @@ Resources:
             Principal:
               Service: events.amazonaws.com
             Action: sqs:SendMessage
-            Resource: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:BartimaeusRequests'
+            Resource: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:BotRequests'
             Condition:
               ArnEquals:
                 'aws:SourceArn': !GetAtt DailySummaryRule.Arn

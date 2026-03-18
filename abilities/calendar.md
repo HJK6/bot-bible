@@ -6,7 +6,7 @@ Read and create calendar events via Apple Calendar (AppleScript) and Google Cale
 
 | Account | Token Path |
 |---------|-----------|
-| **YOUR_BOT_EMAIL** (Bartimaeus) | `~/.config/google/calendar_token.json` |
+| **YOUR_BOT_EMAIL** (YOUR_BOT_NAME) | `~/.config/google/calendar_token.json` |
 | **YOUR_USER_EMAIL** (User) | `~/.config/google/user_calendar_token.json` |
 | **YOUR_USER_EMAIL_2** (User) | `~/.config/google/gujju_calendar_token.json` |
 
@@ -129,7 +129,7 @@ end tell'
 
 ## Google Calendar — Python (Google API)
 
-Requires `credentials.json` at `/Users/bartimaeus/.config/google/credentials.json` and token stored at `/Users/bartimaeus/.config/google/calendar_token.json`.
+Requires `credentials.json` at `/Users/YOUR_USERNAME/.config/google/credentials.json` and token stored at `/Users/YOUR_USERNAME/.config/google/calendar_token.json`.
 
 ```python
 import os

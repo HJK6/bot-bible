@@ -4,7 +4,7 @@ import os
 import sys
 import json
 import time
-sys.path.insert(0, "/Users/bartimaeus/agent-dashboard/tracker/hooks")
+sys.path.insert(0, "/Users/YOUR_USERNAME/agent-dashboard/tracker/hooks")
 from shared import ensure_registered, log_message, log_chat, update_task, is_tmux, needs_title, generate_title, set_title
 
 def main():

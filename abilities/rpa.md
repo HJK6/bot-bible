@@ -17,7 +17,7 @@ pip3 install Pillow
 
 ## Source
 
-- Module: `/Users/bartimaeus/telegram-claude-bot/modules/rpa.py`
+- Module: `/Users/YOUR_USERNAME/telegram-claude-bot/modules/rpa.py`
 - Models: `ScreenRegion`, `BBox`, `LocateResult`, `RPAResult` in `Models.py`
 
 ## Quick Start: Find and Click
@@ -86,7 +86,7 @@ if result.found:
 ```python
 from modules.rpa import find_and_type
 
-find_and_type("the username field", "bartimaeus")
+find_and_type("the username field", "YOUR_BOT_NAME")
 find_and_type("the password field", "secret123")
 ```
 
@@ -103,7 +103,7 @@ check_accessibility()    # True/False
 ## CLI
 
 ```bash
-cd /Users/bartimaeus/telegram-claude-bot
+cd /Users/YOUR_USERNAME/telegram-claude-bot
 python3 modules/rpa.py "the Allow button"
 python3 modules/rpa.py "the red close button"
 ```

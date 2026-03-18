@@ -1,4 +1,4 @@
-# Bartimaeus Mobile — Build Process
+# YOUR_BOT_NAME Mobile — Build Process
 
 ## Quick Reference
 
@@ -8,7 +8,7 @@
 | `npm run validate` | TypeScript check + JS bundle export | ~10s |
 | `npm run ios:release` | iOS Release build for simulator (embeds JS) | ~3min |
 | `npm run ios:device` | iOS Release build for physical device (embeds JS) | ~3min |
-| `npm run deploy:web` | Build + deploy to bartimaeus.quest | ~30s |
+| `npm run deploy:web` | Build + deploy to YOUR_DOMAIN | ~30s |
 
 ## Validation Checklist
 
@@ -61,7 +61,7 @@ npx expo start --web
 
 ## Critical: Kill Other Metro Servers Before Building
 
-**ALWAYS kill other Expo/Metro processes before building.** Multiple Expo apps share port 8081 by default. If another app's Metro bundler is running (e.g., Altum Realty on port 8081), the Bartimaeus build can load the WRONG app's JS bundle — resulting in the correct native shell but completely wrong app content.
+**ALWAYS kill other Expo/Metro processes before building.** Multiple Expo apps share port 8081 by default. If another app's Metro bundler is running (e.g., Altum Realty on port 8081), the YOUR_BOT_NAME build can load the WRONG app's JS bundle — resulting in the correct native shell but completely wrong app content.
 
 ```bash
 # Before any build, kill stray Metro processes:
@@ -70,7 +70,7 @@ pkill -f metro; pkill -f "expo start"
 lsof -i :8081
 ```
 
-This happened Feb 2026: Altum Realty's Metro was on 8081, Bartimaeus builds grabbed Altum's JS code. The app showed the Bartimaeus splash screen then loaded Altum Realty. Fix was applied in `AppDelegate.swift` — Release mode now ignores deep link bundle URL overrides and always uses the embedded `main.jsbundle`.
+This happened Feb 2026: Altum Realty's Metro was on 8081, YOUR_BOT_NAME builds grabbed Altum's JS code. The app showed the YOUR_BOT_NAME splash screen then loaded Altum Realty. Fix was applied in `AppDelegate.swift` — Release mode now ignores deep link bundle URL overrides and always uses the embedded `main.jsbundle`.
 
 ## Common Issues
 
@@ -95,7 +95,7 @@ Simple JS-only changes don't need a native rebuild.
 ## Project Structure
 
 ```
-bartimaeus-mobile/
+YOUR_BOT_NAME-mobile/
 ├── app/                    # Expo Router screens (file-based routing)
 │   ├── _layout.tsx         # Root layout (auth, theme, fonts)
 │   ├── (tabs)/             # Tab navigator

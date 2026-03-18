@@ -3,7 +3,7 @@ Expense Manager — receipt storage, OCR, DynamoDB tracking, and tax report gene
 
 Usage:
     import sys
-    sys.path.insert(0, "/Users/bartimaeus/telegram-claude-bot")
+    sys.path.insert(0, "/Users/YOUR_USERNAME/telegram-claude-bot")
     from modules.expenses import ExpenseManager
 
     em = ExpenseManager()
@@ -28,7 +28,7 @@ from PIL import Image
 import pytesseract
 
 EXPENSES_TABLE = "Expenses"
-RECEIPTS_BUCKET = "bartimaeus-expense-receipts"
+RECEIPTS_BUCKET = "YOUR_BOT_NAME-expense-receipts"
 
 # Categories from the MyTaxFiler Business Organizer template
 EXPENSE_CATEGORIES = [

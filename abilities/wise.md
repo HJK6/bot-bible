@@ -4,14 +4,14 @@ Send international money transfers via the Wise (TransferWise) API.
 
 ## Location
 
-Source: `/Users/bartimaeus/telegram-claude-bot/modules/wise.py`
+Source: `/Users/YOUR_USERNAME/telegram-claude-bot/modules/wise.py`
 API Key: AWS SSM `/altum/wise/api-key` (SecureString)
 
 ## Setup
 
 ```python
 import sys
-sys.path.insert(0, "/Users/bartimaeus/telegram-claude-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/telegram-claude-bot")
 
 from modules.wise import Wise, send_money, get_balance, get_exchange_rate
 ```
@@ -182,7 +182,7 @@ All detail objects should include `legalType`: `"PRIVATE"` or `"BUSINESS"`.
 ## CLI Test
 
 ```bash
-cd /Users/bartimaeus/telegram-claude-bot
+cd /Users/YOUR_USERNAME/telegram-claude-bot
 python3 modules/wise.py
 ```
 

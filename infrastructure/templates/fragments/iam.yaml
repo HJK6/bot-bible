@@ -40,7 +40,7 @@ Resources:
                   - !Sub '${PushTokens.Arn}/index/*'
                   - !GetAtt BusinessExpenses.Arn
                   - !Sub '${BusinessExpenses.Arn}/index/*'
-                  - !GetAtt BartVoiceCalls.Arn
+                  - !GetAtt BotVoiceCalls.Arn
                   - !GetAtt BotCommBots.Arn
                   - !GetAtt BotCommSessions.Arn
                   - !GetAtt BotCommMessages.Arn
@@ -62,13 +62,13 @@ Resources:
                   - s3:GetObject
                   - s3:DeleteObject
                 Resource:
-                  - 'arn:aws:s3:::bartimaeus-chat-media/*'
+                  - 'arn:aws:s3:::YOUR_BOT_NAME-chat-media/*'
                   - 'arn:aws:s3:::altum-deployment-assets/schedule/*'
               - Effect: Allow
                 Action:
                   - s3:ListBucket
                 Resource:
-                  - 'arn:aws:s3:::bartimaeus-chat-media'
+                  - 'arn:aws:s3:::YOUR_BOT_NAME-chat-media'
                 Condition:
                   StringLike:
                     s3:prefix:
@@ -92,14 +92,14 @@ Resources:
                 Action:
                   - ssm:GetParameter
                 Resource:
-                  - 'arn:aws:ssm:us-east-1:YOUR_AWS_ACCOUNT_ID:parameter/bartimaeus/creds/*'
-                  - 'arn:aws:ssm:us-east-1:YOUR_AWS_ACCOUNT_ID:parameter/bartimaeus/botcomm/*'
+                  - 'arn:aws:ssm:us-east-1:YOUR_AWS_ACCOUNT_ID:parameter/YOUR_BOT_NAME/creds/*'
+                  - 'arn:aws:ssm:us-east-1:YOUR_AWS_ACCOUNT_ID:parameter/YOUR_BOT_NAME/botcomm/*'
               - Effect: Allow
                 Action:
                   - ssm:PutParameter
                   - ssm:DeleteParameter
                 Resource:
-                  - 'arn:aws:ssm:us-east-1:YOUR_AWS_ACCOUNT_ID:parameter/bartimaeus/botcomm/*'
+                  - 'arn:aws:ssm:us-east-1:YOUR_AWS_ACCOUNT_ID:parameter/YOUR_BOT_NAME/botcomm/*'
         - PolicyName: BedrockAccess
           PolicyDocument:
             Version: '2012-10-17'

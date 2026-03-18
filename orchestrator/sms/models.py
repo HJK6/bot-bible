@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-sys.path.insert(0, "/Users/bartimaeus/land-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 from modules.Models import DataclassBase
 
 
@@ -23,7 +23,7 @@ class Scope:
 
 @dataclass
 class SmsContact(DataclassBase):
-    """BartSmsContacts table. PK: phone (E.164, e.g. '+1XXXXXXXXXX')."""
+    """BotSmsContacts table. PK: phone (E.164, e.g. '+1XXXXXXXXXX')."""
 
     phone: str = ""               # E.164 format
     name: str = ""                # Display name
@@ -37,7 +37,7 @@ class SmsContact(DataclassBase):
 
 @dataclass
 class SmsSession(DataclassBase):
-    """BartSmsSessions table. PK: phone, SK: session_id.
+    """BotSmsSessions table. PK: phone, SK: session_id.
     A session groups related messages within a time window.
     After SESSION_GAP_HOURS of inactivity, a new session starts."""
 
@@ -54,7 +54,7 @@ class SmsSession(DataclassBase):
 
 @dataclass
 class SmsMessage(DataclassBase):
-    """BartSmsMessages table. PK: session_id, SK: message_id (ULID-style string).
+    """BotSmsMessages table. PK: session_id, SK: message_id (ULID-style string).
     Individual messages within a session."""
 
     session_id: str = ""
@@ -78,7 +78,7 @@ class SmsExpenseItem(DataclassBase):
 
 @dataclass
 class SmsExpense(DataclassBase):
-    """BartSmsExpenses table. PK: event_id, SK: expense_id.
+    """BotSmsExpenses table. PK: event_id, SK: expense_id.
     Tracks individual expenses within an event (e.g. bachelor_party)."""
 
     event_id: str = ""            # e.g. "bachelor_party"

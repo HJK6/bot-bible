@@ -4,7 +4,7 @@ Scrape tweets, user profiles, search results, and trends from X using **twikit**
 
 **Free**: No API key or subscription needed. Uses account session cookies (like browsing X in a browser).
 
-**Account**: `@mr_bartimaeus` (Google login)
+**Account**: `@YOUR_X_HANDLE` (Google login)
 
 ## Setup (one-time)
 
@@ -13,7 +13,7 @@ X killed anonymous/guest access. Must log in once to capture session cookies.
 Run this setup script — it opens Chrome, you log in via Google, and cookies are saved:
 
 ```bash
-py /Users/bartimaeus/telegram-claude-bot/scripts/x_setup.py
+py /Users/YOUR_USERNAME/telegram-claude-bot/scripts/x_setup.py
 ```
 
 This saves cookies to `~/.config/x/cookies.json`. Cookies last weeks/months — re-run if they expire.
@@ -24,7 +24,7 @@ This saves cookies to `~/.config/x/cookies.json`. Cookies last weeks/months — 
 import asyncio
 from twikit import Client
 
-COOKIES_PATH = '/Users/bartimaeus/.config/x/cookies.json'
+COOKIES_PATH = '/Users/YOUR_USERNAME/.config/x/cookies.json'
 
 async def x_client() -> Client:
     """Get an authenticated X client."""
@@ -195,7 +195,7 @@ async def search_all(query: str, max_tweets: int = 100):
 If you get auth errors (401/403), cookies have expired. Re-run setup:
 
 ```bash
-py /Users/bartimaeus/telegram-claude-bot/scripts/x_setup.py
+py /Users/YOUR_USERNAME/telegram-claude-bot/scripts/x_setup.py
 ```
 
 ## Notes

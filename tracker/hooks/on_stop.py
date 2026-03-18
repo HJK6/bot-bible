@@ -3,7 +3,7 @@
 import sys
 import json
 
-sys.path.insert(0, "/Users/bartimaeus/agent-dashboard/tracker/hooks")
+sys.path.insert(0, "/Users/YOUR_USERNAME/agent-dashboard/tracker/hooks")
 from shared import ensure_registered, log_message, log_chat, update_task
 
 def is_tool_noise(text):

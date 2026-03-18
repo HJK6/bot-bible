@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bartimaeus morning briefing — weekday 9 AM analysis of queue health and call days."""
+"""YOUR_BOT_NAME morning briefing — weekday 9 AM analysis of queue health and call days."""
 
 import boto3
 import boto3.dynamodb.conditions
@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from collections import defaultdict
 
-CONFIG_PATH = Path.home() / ".config" / "bartimaeus" / "heartbeat.json"
+CONFIG_PATH = Path.home() / ".config" / "YOUR_BOT_NAME" / "heartbeat.json"
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
 NEXT_SCOUT_LEAD_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/NextScoutLead"
@@ -237,7 +237,7 @@ def send_update(message):
         'timestamp': int(time.time() * 1000),
         'direction': 'outbound',
         'message': message,
-        'sender': 'Bartimaeus',
+        'sender': 'YOUR_BOT_NAME',
         'ttl': int(time.time()) + (7 * 86400),
     })
     send_push_notification("[System]", message)

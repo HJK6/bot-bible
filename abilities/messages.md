@@ -8,7 +8,7 @@ Send and read iMessages via AppleScript.
 osascript -e 'tell application "Messages"
     set targetService to 1st account whose service type = iMessage
     set targetBuddy to participant "+1XXXXXXXXXX" of targetService
-    send "Hello from Bartimaeus!" to targetBuddy
+    send "Hello from YOUR_BOT_NAME!" to targetBuddy
 end tell'
 ```
 

@@ -15,22 +15,22 @@ AI: Ollama (qwen2.5:14b) for conversation and expense parsing
 
 | Component | Path |
 |-----------|------|
-| SMS Handler | `/Users/bartimaeus/agent-dashboard/orchestrator/sms/handler.py` |
-| Models | `/Users/bartimaeus/agent-dashboard/orchestrator/sms/models.py` |
-| Storage | `/Users/bartimaeus/agent-dashboard/orchestrator/sms/storage.py` |
-| Expenses | `/Users/bartimaeus/agent-dashboard/orchestrator/sms/expenses.py` |
-| Table Setup | `/Users/bartimaeus/agent-dashboard/orchestrator/sms/setup.py` |
-| Twilio Send | `/Users/bartimaeus/land-bot/modules/HttpsSms.py` |
-| Webhook Lambda | `/Users/bartimaeus/agent-dashboard/handlers/sms_webhook.py` |
+| SMS Handler | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/sms/handler.py` |
+| Models | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/sms/models.py` |
+| Storage | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/sms/storage.py` |
+| Expenses | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/sms/expenses.py` |
+| Table Setup | `/Users/YOUR_USERNAME/agent-dashboard/orchestrator/sms/setup.py` |
+| Twilio Send | `/Users/YOUR_USERNAME/land-bot/modules/HttpsSms.py` |
+| Webhook Lambda | `/Users/YOUR_USERNAME/agent-dashboard/handlers/sms_webhook.py` |
 
 ## DynamoDB Tables
 
 | Table | PK | SK | Purpose |
 |-------|----|----|---------|
-| `BartSmsContacts` | `phone` (E.164) | — | Contact registry with scopes |
-| `BartSmsSessions` | `phone` | `session_id` (ULID) | Session tracking per contact |
-| `BartSmsMessages` | `session_id` | `message_id` (ULID) | Individual messages |
-| `BartSmsExpenses` | `event_id` | `expense_id` (ULID) | Expense records per event |
+| `BotSmsContacts` | `phone` (E.164) | — | Contact registry with scopes |
+| `BotSmsSessions` | `phone` | `session_id` (ULID) | Session tracking per contact |
+| `BotSmsMessages` | `session_id` | `message_id` (ULID) | Individual messages |
+| `BotSmsExpenses` | `event_id` | `expense_id` (ULID) | Expense records per event |
 
 ## Scopes
 
@@ -52,10 +52,10 @@ AI: Ollama (qwen2.5:14b) for conversation and expense parsing
 
 ```python
 import sys
-sys.path.insert(0, "/Users/bartimaeus/land-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 from modules.HttpsSms import send_sms
 
-send_sms("+1XXXXXXXXXX", "Hello from Bartimaeus")
+send_sms("+1XXXXXXXXXX", "Hello from YOUR_BOT_NAME")
 send_sms("+1XXXXXXXXXX", "Hello", from_number="+19725128295")
 ```
 
@@ -86,7 +86,7 @@ Archon can also send itemized receipts (AI-parsed).
 
 - `TWILIO_ACCOUNT_SID` = `YOUR_TWILIO_ACCOUNT_SID`
 - `TWILIO_AUTH_TOKEN` = configured in Config.py
-- `TWILIO_SMS_NUMBER` = `+1XXXXXXXXXX` (Bartimaeus number)
+- `TWILIO_SMS_NUMBER` = `+1XXXXXXXXXX` (YOUR_BOT_NAME number)
 - Archon phone: `+1XXXXXXXXXX`
 
 ## Notes

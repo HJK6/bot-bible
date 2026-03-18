@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-sys.path.insert(0, "/Users/bartimaeus/land-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 from modules.Models import DataclassBase
 
 
@@ -23,7 +23,7 @@ class BotScope:
 @dataclass
 class BotCommBot(DataclassBase):
     """BotCommBots table. PK: bot_id.
-    Registry of known friend bots that can communicate with Bartimaeus."""
+    Registry of known friend bots that can communicate with YOUR_BOT_NAME."""
 
     bot_id: str = ""              # Unique identifier (e.g. "aria-bot")
     name: str = ""                # Display name

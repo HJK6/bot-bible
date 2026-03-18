@@ -166,10 +166,10 @@ Resources:
         AttributeName: ttl
         Enabled: true
 
-  BartVoiceCalls:
+  BotVoiceCalls:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: BartVoiceCalls
+      TableName: BotVoiceCalls
       AttributeDefinitions:
         - AttributeName: call_sid
           AttributeType: S

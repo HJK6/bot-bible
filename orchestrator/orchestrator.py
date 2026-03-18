@@ -52,7 +52,7 @@ PUSH_TOKENS_TABLE = "PushTokens"
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
 COMMAND_POLL_INTERVAL = 5  # seconds
-CLAUDE_WORKING_DIR = "/Users/bartimaeus"
+CLAUDE_WORKING_DIR = "/Users/YOUR_USERNAME"
 CLAUDE_CMD = ["claude", "-p", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"]
 
 # AI routing via Claude Code CLI (Max subscription)
@@ -293,7 +293,7 @@ class Orchestrator:
             shutil.rmtree(sessions_dir, ignore_errors=True)
 
         # Load telegram bot token from env file
-        env_path = "/Users/bartimaeus/telegram-claude-bot/.env"
+        env_path = "/Users/YOUR_USERNAME/telegram-claude-bot/.env"
         if os.path.exists(env_path):
             with open(env_path) as f:
                 for line in f:
@@ -635,7 +635,7 @@ class Orchestrator:
         Context comes from DynamoDB (session history), not a persistent agent.
         """
         # Build context from bot handler's session data
-        context_lines = [text, "", "---", f"You are Bartimaeus. Reply to this BotComm message from bot '{bot_id}'."]
+        context_lines = [text, "", "---", f"You are YOUR_BOT_NAME. Reply to this BotComm message from bot '{bot_id}'."]
 
         if self.bot_handler:
             try:
@@ -649,7 +649,7 @@ class Orchestrator:
                         if recent:
                             context_lines.append("\nRecent conversation:")
                             for msg in recent:
-                                who = bot.name if msg.direction == "inbound" else "Bartimaeus"
+                                who = bot.name if msg.direction == "inbound" else "YOUR_BOT_NAME"
                                 context_lines.append(f"  {who}: {msg.body[:300]}")
                         if getattr(session, "summary", ""):
                             context_lines.append(f"\nSession summary: {session.summary}")
@@ -1765,7 +1765,7 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
             return
 
         # Claude Code stores sessions under ~/.claude/projects/<project>/.sessions/
-        sessions_dir = os.path.expanduser("~/.claude/projects/-Users-bartimaeus/.sessions")
+        sessions_dir = os.path.expanduser("~/.claude/projects/-Users-YOUR_USERNAME/.sessions")
         if not os.path.exists(sessions_dir):
             return
 
@@ -1826,7 +1826,7 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
         except Exception as e:
             logger.warning(f"Failed to refresh agent meta for {agent.agent_id[:8]}: {e}")
 
-    async def send_update(self, message: str, sender: str = "Bartimaeus"):
+    async def send_update(self, message: str, sender: str = "YOUR_BOT_NAME"):
         """Send a system update visible in the Updates tab of the mobile app."""
         self._log_chat("system", message, direction="outbound", sender=sender)
         await self._send_push_notification("System", message, agent_id="system")

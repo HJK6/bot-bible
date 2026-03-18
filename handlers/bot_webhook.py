@@ -14,7 +14,7 @@ import uuid
 import boto3
 
 QUEUE_URL = os.environ.get("ORCHESTRATOR_QUEUE_URL", "")
-MEDIA_BUCKET = os.environ.get("MEDIA_BUCKET", "bartimaeus-chat-media")
+MEDIA_BUCKET = os.environ.get("MEDIA_BUCKET", "YOUR_BOT_NAME-chat-media")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 sqs = boto3.client("sqs", region_name=REGION)
@@ -39,7 +39,7 @@ def _get_api_key_hash(bot_id: str) -> str:
         return _key_cache[bot_id]
     try:
         resp = ssm.get_parameter(
-            Name=f"/bartimaeus/botcomm/keys/{bot_id}",
+            Name=f"/YOUR_BOT_NAME/botcomm/keys/{bot_id}",
             WithDecryption=True,
         )
         _key_cache[bot_id] = resp["Parameter"]["Value"]
@@ -128,7 +128,7 @@ def _handle_registration(payload: dict) -> dict:
         return _json_response(409, {"error": f"bot_id '{bot_id}' is already registered"})
 
     # Validate registration token from SSM
-    ssm_path = f"/bartimaeus/botcomm/reg/{reg_token}"
+    ssm_path = f"/YOUR_BOT_NAME/botcomm/reg/{reg_token}"
     try:
         resp = ssm.get_parameter(Name=ssm_path, WithDecryption=True)
         token_data = json.loads(resp["Parameter"]["Value"])
@@ -182,7 +182,7 @@ def _handle_registration(payload: dict) -> dict:
     # Store API key hash in SSM
     try:
         ssm.put_parameter(
-            Name=f"/bartimaeus/botcomm/keys/{bot_id}",
+            Name=f"/YOUR_BOT_NAME/botcomm/keys/{bot_id}",
             Value=api_key_hash,
             Type="SecureString",
             Overwrite=True,
@@ -194,7 +194,7 @@ def _handle_registration(payload: dict) -> dict:
     # Store HMAC secret in SSM
     try:
         ssm.put_parameter(
-            Name=f"/bartimaeus/botcomm/hmac/{bot_id}",
+            Name=f"/YOUR_BOT_NAME/botcomm/hmac/{bot_id}",
             Value=hmac_secret,
             Type="SecureString",
             Overwrite=True,
@@ -231,7 +231,7 @@ def _handle_registration(payload: dict) -> dict:
         "bot_id": bot_id,
         "api_key": api_key,
         "hmac_secret": hmac_secret,
-        "bartimaeus_webhook_url": "",  # Filled by the friend from the invite instructions
+        "bot_webhook_url": "",  # Filled by the friend from the invite instructions
     }).encode()
     try:
         req = urllib.request.Request(
@@ -304,7 +304,7 @@ def botWebhookHandler(event, context):
         print(f"Ping from {bot_id}")
         return _json_response(200, {
             "status": "ok",
-            "bot": "bartimaeus",
+            "bot": "YOUR_BOT_NAME",
             "message_id": message_id,
             "timestamp": timestamp,
         })

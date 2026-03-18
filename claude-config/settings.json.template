@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/bartimaeus/.venvs/global/bin/python /Users/bartimaeus/agent-dashboard/tracker/hooks/on_prompt.py",
+            "command": "/Users/YOUR_USERNAME/.venvs/global/bin/python /Users/YOUR_USERNAME/agent-dashboard/tracker/hooks/on_prompt.py",
             "timeout": 10
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/bartimaeus/.venvs/global/bin/python /Users/bartimaeus/agent-dashboard/tracker/hooks/on_tool.py",
+            "command": "/Users/YOUR_USERNAME/.venvs/global/bin/python /Users/YOUR_USERNAME/agent-dashboard/tracker/hooks/on_tool.py",
             "timeout": 10
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/bartimaeus/.venvs/global/bin/python /Users/bartimaeus/agent-dashboard/tracker/hooks/on_stop.py",
+            "command": "/Users/YOUR_USERNAME/.venvs/global/bin/python /Users/YOUR_USERNAME/agent-dashboard/tracker/hooks/on_stop.py",
             "timeout": 10
           }
         ]
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/bartimaeus/.venvs/global/bin/python /Users/bartimaeus/agent-dashboard/tracker/hooks/on_notification.py",
+            "command": "/Users/YOUR_USERNAME/.venvs/global/bin/python /Users/YOUR_USERNAME/agent-dashboard/tracker/hooks/on_notification.py",
             "timeout": 10
           }
         ]

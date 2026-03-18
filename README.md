@@ -1,6 +1,8 @@
 # Bot Bible
 
-Everything a new Claude Code instance needs to stand up the Bartimaeus agent infrastructure from scratch.
+Everything a new Claude Code instance needs to stand up a bot agent infrastructure from scratch.
+
+> **All `YOUR_BOT_NAME`, `YOUR_USERNAME`, `YOUR_DOMAIN`, etc. placeholders** must be replaced during setup. The bootstrap Claude Code session should prompt the user for their bot name and use it everywhere.
 
 ## Architecture Overview
 
@@ -58,6 +60,40 @@ Everything a new Claude Code instance needs to stand up the Bartimaeus agent inf
 - tmux installed (`brew install tmux`)
 - Expo CLI (`npm install -g expo-cli`)
 
+### 0. First-Time Setup (Claude Code should do this automatically)
+
+When a Claude Code instance reads this repo for the first time, it should:
+
+1. **Prompt the user for their bot name** — use this to replace all `YOUR_BOT_NAME` placeholders throughout the codebase (SSM paths, bucket names, identifiers, Soul.md identity, etc.)
+2. **Prompt for macOS username** — replace all `YOUR_USERNAME` placeholders (file paths, memory paths, etc.)
+3. **Prompt for domain** — replace all `YOUR_DOMAIN` placeholders
+4. **Prompt for GitHub org** — replace all `YOUR_GITHUB_ORG` placeholders
+5. **Create the Tmux Sessions desktop shortcut** — build and install `desktop/tmux-sessions/`:
+   ```bash
+   cd desktop/tmux-sessions && bash build.sh
+   cp -r "Tmux Sessions.app" ~/Desktop/
+   ```
+6. **Create a Claude Code launcher on the Desktop** — a `.command` file that opens Claude Code with `--dangerously-skip-permissions`:
+   ```bash
+   cat > ~/Desktop/Claude\ Code.command << 'EOF'
+   #!/bin/bash
+   cd ~
+   claude --dangerously-skip-permissions
+   EOF
+   chmod +x ~/Desktop/Claude\ Code.command
+   ```
+7. **Install and configure tmux** — copy the tmux config:
+   ```bash
+   cp claude-config/tmux.conf ~/.tmux.conf
+   # Install TPM (tmux plugin manager)
+   git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+   ```
+8. **Copy Claude Code settings** — install hooks config:
+   ```bash
+   cp claude-config/settings.json.template ~/.claude/settings.json
+   # Update hook paths to match the user's home directory
+   ```
+
 ### 1. Deploy AWS Infrastructure
 
 ```bash
@@ -71,7 +107,7 @@ make deploy_stack          # Create/update CloudFormation stack
 ### 2. Configure Claude Code
 
 ```bash
-# Copy settings template
+# Copy settings template (done in step 0 if automated)
 cp claude-config/settings.json.template ~/.claude/settings.json
 # Copy tmux config
 cp claude-config/tmux.conf ~/.tmux.conf
@@ -155,8 +191,8 @@ After cloning, prompt the user for these values and update accordingly:
 ### Credentials (SSM Parameter Store)
 | What | SSM Path | Notes |
 |------|----------|-------|
-| BotComm Secret | `/bartimaeus/botcomm/secret` | HMAC signing key for bot-to-bot auth |
-| Porkbun API Key | `/bartimaeus/creds/porkbun` | DNS management |
+| BotComm Secret | `/YOUR_BOT_NAME/botcomm/secret` | HMAC signing key for bot-to-bot auth |
+| Porkbun API Key | `/YOUR_BOT_NAME/creds/porkbun` | DNS management |
 | Google OAuth | `~/.config/google/credentials.json` | Gmail + Calendar API |
 
 ---
@@ -253,6 +289,30 @@ This means the same session always gets the same agent_id, enabling:
 - Cross-process communication via DynamoDB
 - Dashboard tracking continuity
 
+### Tmux Configuration
+
+The config at `claude-config/tmux.conf` sets up tmux for agent use:
+
+| Setting | Purpose |
+|---------|---------|
+| `mouse on` | Click, scroll, resize panes with mouse |
+| `history-limit 50000` | Large scrollback for long agent sessions |
+| `base-index 1` | Number windows from 1 (not 0) for easier nav |
+| `renumber-windows on` | No gaps when windows are closed |
+| `automatic-rename off` | Keep window names stable (agent session names) |
+| `detach-on-destroy on` | Detach instead of closing terminal when session ends |
+| `new-window -c #{pane_current_path}` | New windows inherit working directory |
+| `session-closed` hook | Marks dead sessions in AgentTracker DynamoDB |
+
+Each agent gets its own **new window** (not a pane) — this keeps sessions isolated and easy to navigate via the Tmux Sessions desktop app.
+
+### Desktop Shortcuts
+
+Two desktop shortcuts should be created during setup:
+
+1. **Tmux Sessions.app** — Tkinter GUI for managing tmux agent sessions (open, trash, restore, create)
+2. **Claude Code.command** — Opens Claude Code with `--dangerously-skip-permissions` in Terminal
+
 ---
 
 ## Hook System
@@ -285,7 +345,7 @@ bin/schedule recurring "09:00 weekdays" "python daily_task.py" --tag daily-task
 bin/schedule-list
 ```
 
-Jobs are managed via macOS LaunchAgents (`~/Library/LaunchAgents/com.bartimaeus.schedule.*.plist`).
+Jobs are managed via macOS LaunchAgents (`~/Library/LaunchAgents/com.YOUR_BOT_NAME.schedule.*.plist`).
 
 ---
 
@@ -293,16 +353,16 @@ Jobs are managed via macOS LaunchAgents (`~/Library/LaunchAgents/com.bartimaeus.
 
 ```bash
 # Sync config to S3
-bin/bart-sync push
+bin/bot-sync push
 
 # Restore config from S3
-bin/bart-sync pull
+bin/bot-sync pull
 
 # Backup credentials to SSM
-bin/bart-sync backup-creds
+bin/bot-sync backup-creds
 
 # Full fresh-Mac bootstrap
-bin/bart-bootstrap
+bin/bot-bootstrap
 ```
 
 ---

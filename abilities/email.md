@@ -6,7 +6,7 @@ Send and read email via Apple Mail (AppleScript) and Gmail (Google API).
 
 | Account | Token Path |
 |---------|-----------|
-| **YOUR_BOT_EMAIL** (Bartimaeus) | `~/.config/google/gmail_token.json` |
+| **YOUR_BOT_EMAIL** (YOUR_BOT_NAME) | `~/.config/google/gmail_token.json` |
 | **YOUR_USER_EMAIL** (User) | `~/.config/google/user_gmail_token.json` |
 | **YOUR_USER_EMAIL_2** (User) | `~/.config/google/gujju_gmail_token.json` |
 
@@ -16,7 +16,7 @@ Use the appropriate token path depending on which account you need to act as.
 
 ```bash
 osascript -e 'tell application "Mail"
-    set newMsg to make new outgoing message with properties {subject:"Test from Bartimaeus", content:"Hello from the agent!", visible:false}
+    set newMsg to make new outgoing message with properties {subject:"Test from YOUR_BOT_NAME", content:"Hello from the agent!", visible:false}
     tell newMsg
         make new to recipient at end of to recipients with properties {address:"recipient@example.com"}
     end tell
@@ -119,7 +119,7 @@ osascript -e 'tell application "Mail" to return unread count of inbox'
 
 ## Gmail — Python (Google API)
 
-Requires `credentials.json` at `/Users/bartimaeus/.config/google/credentials.json` and token stored at `/Users/bartimaeus/.config/google/gmail_token.json`.
+Requires `credentials.json` at `/Users/YOUR_USERNAME/.config/google/credentials.json` and token stored at `/Users/YOUR_USERNAME/.config/google/gmail_token.json`.
 
 ```python
 import os, base64

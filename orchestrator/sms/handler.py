@@ -20,9 +20,9 @@ from .altum_analytics import handle_altum_analytics
 logger = logging.getLogger("orchestrator.sms")
 
 # Add land-bot for SMS sending
-sys.path.insert(0, "/Users/bartimaeus/land-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 
-CLAUDE_CMD = "/Users/bartimaeus/.local/bin/claude"
+CLAUDE_CMD = "/Users/YOUR_USERNAME/.local/bin/claude"
 TMUX_CMD = "/opt/homebrew/bin/tmux"
 
 # Session gap: 4 hours of inactivity = new session
@@ -32,7 +32,7 @@ SESSION_GAP_MS = 4 * 60 * 60 * 1000
 COMPACT_THRESHOLD = 20
 COMPACT_KEEP_RECENT = 5
 
-# Bartimaeus Twilio number
+# YOUR_BOT_NAME Twilio number
 TWILIO_NUMBER = "+1XXXXXXXXXX"
 
 # Archon phone
@@ -373,7 +373,7 @@ class SmsHandler:
         recent_messages = self.storage.get_recent_messages(session.session_id, limit=8)
         conversation_context = ""
         for msg in recent_messages[:-1]:
-            role = contact.name if msg.direction == "inbound" else "Bartimaeus"
+            role = contact.name if msg.direction == "inbound" else "YOUR_BOT_NAME"
             conversation_context += f"{role}: {msg.body}\n"
 
         # Get their current expense stats
@@ -390,7 +390,7 @@ class SmsHandler:
             if first:
                 name_to_phone[first] = c.phone
 
-        prompt = f"""You are Bartimaeus, a bot collecting group expenses via SMS from a bachelor party trip to Big Sky, Montana (Wed Feb 26 - Tue Mar 3, 2026). The trip days: Wed=Feb 25, Thu=Feb 26, Fri=Feb 27, Sat=Feb 28, Sun=Mar 1, Mon=Mar 2, Tue=Mar 3.
+        prompt = f"""You are YOUR_BOT_NAME, a bot collecting group expenses via SMS from a bachelor party trip to Big Sky, Montana (Wed Feb 26 - Tue Mar 3, 2026). The trip days: Wed=Feb 25, Thu=Feb 26, Fri=Feb 27, Sat=Feb 28, Sun=Mar 1, Mon=Mar 2, Tue=Mar 3.
 
 You are talking to: {contact.name}
 All participants: {', '.join(participant_names)}
@@ -484,7 +484,7 @@ Rules:
         recent_messages = self.storage.get_recent_messages(session.session_id, limit=6)
         context_parts = []
         for msg in recent_messages[:-1]:
-            role = contact.name if msg.direction == "inbound" else "Bartimaeus"
+            role = contact.name if msg.direction == "inbound" else "YOUR_BOT_NAME"
             context_parts.append(f"{role}: {msg.body}")
         conversation_context = "\n".join(context_parts)
 
@@ -531,7 +531,7 @@ Rules:
             context_parts.append(f"Previous conversation summary: {session_data.summary}")
 
         for msg in recent_messages[:-1]:  # Exclude the message we're replying to (it was just stored)
-            role = "User" if msg.direction == "inbound" else "Bartimaeus"
+            role = "User" if msg.direction == "inbound" else "YOUR_BOT_NAME"
             context_parts.append(f"{role}: {msg.body}")
 
         conversation = "\n".join(context_parts)
@@ -541,7 +541,7 @@ Rules:
             Scope.CHAT: "You can have casual conversation. Keep it friendly and brief.",
         }
 
-        prompt = f"""You are Bartimaeus, a helpful AI assistant communicating via SMS. Keep replies SHORT (under 160 chars when possible, max 320 chars). Be concise but friendly.
+        prompt = f"""You are YOUR_BOT_NAME, a helpful AI assistant communicating via SMS. Keep replies SHORT (under 160 chars when possible, max 320 chars). Be concise but friendly.
 
 Contact: {contact.name}
 Scope: {scope}

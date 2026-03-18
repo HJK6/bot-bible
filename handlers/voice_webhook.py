@@ -22,14 +22,14 @@ from urllib.parse import parse_qs
 
 import boto3
 
-VOICE_CALLS_TABLE = os.environ.get("VOICE_CALLS_TABLE", "BartVoiceCalls")
+VOICE_CALLS_TABLE = os.environ.get("VOICE_CALLS_TABLE", "BotVoiceCalls")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 dynamo = boto3.resource("dynamodb", region_name=REGION)
 bedrock = boto3.client("bedrock-runtime", region_name=REGION)
 
 SYSTEM_PROMPT = (
-    "You are Bartimaeus, a helpful AI assistant on a phone call. "
+    "You are YOUR_BOT_NAME, a helpful AI assistant on a phone call. "
     "Keep responses concise and conversational — 2-3 sentences max since this will be spoken aloud. "
     "Be natural, friendly, and helpful. Don't use markdown, bullet points, lists, or any formatting "
     "that doesn't work in speech. Don't use emojis or special characters. "
@@ -39,7 +39,7 @@ SYSTEM_PROMPT = (
 
 VOICE = "Polly.Matthew"
 MODEL_ID = "amazon.nova-lite-v1:0"
-GREETING = "Hey! This is Bartimaeus. What's up?"
+GREETING = "Hey! This is YOUR_BOT_NAME. What's up?"
 
 
 def voiceWebhookHandler(event, context):

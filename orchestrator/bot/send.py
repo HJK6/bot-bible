@@ -14,7 +14,7 @@ import sys
 
 # Add project paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.insert(0, "/Users/bartimaeus/land-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 
 from orchestrator.bot.handler import BotHandler
 from orchestrator.bot.storage import BotCommStorage

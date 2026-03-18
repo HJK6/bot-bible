@@ -8,7 +8,7 @@
 
 SESSION="claude"
 TMUX="/opt/homebrew/bin/tmux"
-WATCHER="/Users/bartimaeus/.venvs/global/bin/python /Users/bartimaeus/agent-dashboard/tracker/hooks/tmux_watcher.py"
+WATCHER="/Users/YOUR_USERNAME/.venvs/global/bin/python /Users/YOUR_USERNAME/agent-dashboard/tracker/hooks/tmux_watcher.py"
 
 _ensure_watcher() {
     if ! pgrep -f "tmux_watcher.py" > /dev/null 2>&1; then
@@ -44,7 +44,7 @@ case "${1:-list}" in
         echo "Killed window $2"
         ;;
     new|n)
-        CLAUDE="/Users/bartimaeus/.local/bin/claude --dangerously-skip-permissions"
+        CLAUDE="/Users/YOUR_USERNAME/.local/bin/claude --dangerously-skip-permissions"
         WINDOW_NAME="s$(date +%H%M%S)"
         if ! $TMUX has-session -t "$SESSION" 2>/dev/null; then
             $TMUX new-session -d -s "$SESSION" -n "$WINDOW_NAME" "cd ~ && $CLAUDE"

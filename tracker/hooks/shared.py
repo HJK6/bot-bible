@@ -249,7 +249,7 @@ def generate_title(prompt):
         # Strip TMUX and CLAUDECODE so the Haiku subprocess doesn't trigger hooks
         env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "TMUX", "TMUX_PANE")}
         result = subprocess.run(
-            ["/Users/bartimaeus/.local/bin/claude", "-p", "--model", "haiku",
+            ["/Users/YOUR_USERNAME/.local/bin/claude", "-p", "--model", "haiku",
              f"Generate a very short title (3-5 words, no quotes, no punctuation) for a coding session about: {prompt[:300]}"],
             capture_output=True, text=True, timeout=15, env=env,
         )

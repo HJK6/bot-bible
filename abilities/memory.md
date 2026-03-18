@@ -4,16 +4,16 @@ Event-based memory with DynamoDB storage and local FAISS vector search. Log even
 
 ## Location
 
-Source: `/Users/bartimaeus/memory-system/memory_system/`
+Source: `/Users/YOUR_USERNAME/memory-system/memory_system/`
 DynamoDB table: `MemoryEvents`
-Local FAISS index: `/Users/bartimaeus/memory-system/local/faiss/`
-Daily summaries: `/Users/bartimaeus/memory-system/local/daily/`
+Local FAISS index: `/Users/YOUR_USERNAME/memory-system/local/faiss/`
+Daily summaries: `/Users/YOUR_USERNAME/memory-system/local/daily/`
 
 ## Setup
 
 ```python
 import sys
-sys.path.insert(0, "/Users/bartimaeus/memory-system")
+sys.path.insert(0, "/Users/YOUR_USERNAME/memory-system")
 
 from memory_system import Memory
 ```
@@ -30,7 +30,7 @@ Use `log_event` for lightweight, fire-and-forget event logging. No FAISS overhea
 
 ```python
 import sys
-sys.path.insert(0, "/Users/bartimaeus/memory-system")
+sys.path.insert(0, "/Users/YOUR_USERNAME/memory-system")
 from memory_system.log import log_event
 
 # One-liner — logs to DynamoDB, embeds via Ollama (queues if down)
@@ -46,7 +46,7 @@ log_event("nse-pipeline", "success", "BSE pipeline complete: 3186 stocks scraped
 
 All instrumented scripts use a `mem_log` wrapper that silently catches exceptions:
 ```python
-sys.path.insert(0, "/Users/bartimaeus/memory-system")
+sys.path.insert(0, "/Users/YOUR_USERNAME/memory-system")
 from memory_system.log import log_event as _log_event
 def mem_log(category, summary, **kwargs):
     try: _log_event("my-bot", category, summary, **kwargs)
@@ -174,7 +174,7 @@ The daily summary task automatically audits AgentChat messages before generating
 
 Run manually:
 ```bash
-cd /Users/bartimaeus/memory-system
+cd /Users/YOUR_USERNAME/memory-system
 PYTHONPATH=. ~/.venvs/global/bin/python tasks/audit_chats.py 2026-03-13
 ```
 
@@ -224,14 +224,14 @@ Persistent personal facts with semantic search and optional image attachments. U
 
 ```python
 import sys
-sys.path.insert(0, "/Users/bartimaeus/memory-system")
+sys.path.insert(0, "/Users/YOUR_USERNAME/memory-system")
 
 from memory_system import Facts
 ```
 
 Requires same dependencies as Memory (faiss-cpu, Ollama, AWS credentials), plus:
 - `PersonalFacts` DynamoDB table
-- `bartimaeus-personal-facts` S3 bucket (for image storage, SSE-S3 encrypted)
+- `YOUR_BOT_NAME-personal-facts` S3 bucket (for image storage, SSE-S3 encrypted)
 
 ## Facts Class API
 
@@ -343,6 +343,6 @@ Image path:
   get_image_url() → presigned S3 GET URL (1hr default)
 
 DynamoDB: PersonalFacts table, PK: fact_id, GSI CategoryIndex (category + updated_at)
-S3: bartimaeus-personal-facts bucket (SSE-S3, versioned, no expiry)
+S3: YOUR_BOT_NAME-personal-facts bucket (SSE-S3, versioned, no expiry)
 FAISS: local/faiss/facts_index.faiss + facts_metadata.json (separate from events index)
 ```

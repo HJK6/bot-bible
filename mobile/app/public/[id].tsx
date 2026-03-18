@@ -10,7 +10,7 @@ interface OutputData {
   updated_at: string;
 }
 
-const S3_BASE = 'https://bartimaeus-chat-media.s3.amazonaws.com/public';
+const S3_BASE = 'https://YOUR_BOT_NAME-chat-media.s3.amazonaws.com/public';
 
 const markdownStyles = `
   body {

@@ -15,10 +15,10 @@ logger = logging.getLogger("orchestrator.sms.storage")
 AWS_REGION = "us-east-1"
 
 # Table names
-CONTACTS_TABLE = "BartSmsContacts"
-SESSIONS_TABLE = "BartSmsSessions"
-MESSAGES_TABLE = "BartSmsMessages"
-EXPENSES_TABLE = "BartSmsExpenses"
+CONTACTS_TABLE = "BotSmsContacts"
+SESSIONS_TABLE = "BotSmsSessions"
+MESSAGES_TABLE = "BotSmsMessages"
+EXPENSES_TABLE = "BotSmsExpenses"
 
 
 def _convert_floats(item):

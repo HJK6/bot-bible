@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""bart-sync — Backup & sync Bartimaeus agent config to S3 + SSM.
+"""bot-sync — Backup & sync YOUR_BOT_NAME agent config to S3 + SSM.
 
 Usage:
-    bart-sync init           Create S3 bucket, enable versioning, first full push + cred backup
-    bart-sync push           Upload locally-changed files to S3
-    bart-sync pull           Download remotely-changed files from S3
-    bart-sync status         Show what's changed locally vs remotely
-    bart-sync backup-creds   Store all credentials in SSM
-    bart-sync restore-creds  Restore credentials from SSM to local files
+    bot-sync init           Create S3 bucket, enable versioning, first full push + cred backup
+    bot-sync push           Upload locally-changed files to S3
+    bot-sync pull           Download remotely-changed files from S3
+    bot-sync status         Show what's changed locally vs remotely
+    bot-sync backup-creds   Store all credentials in SSM
+    bot-sync restore-creds  Restore credentials from SSM to local files
 """
 
 import hashlib
@@ -24,12 +24,12 @@ from botocore.exceptions import ClientError
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
-BUCKET = "bartimaeus-sync"
+BUCKET = "YOUR_BOT_NAME-sync"
 REGION = "us-east-1"
-SSM_PREFIX = "/bartimaeus/sync/"
+SSM_PREFIX = "/YOUR_BOT_NAME/sync/"
 HOME = Path.home()
 HOSTNAME = platform.node()
-STATE_DIR = HOME / ".bart-sync"
+STATE_DIR = HOME / ".bot-sync"
 STATE_FILE = STATE_DIR / f"state-{HOSTNAME}.json"
 
 # ── File manifest: (s3_prefix, local_path, is_glob) ──────────────────────────
@@ -50,7 +50,7 @@ def _expand_sync_files():
         files.append(("project-claude-md/CLAUDE.md", local))
 
     # Memory files
-    memory_dir = HOME / ".claude" / "projects" / "-Users-bartimaeus" / "memory"
+    memory_dir = HOME / ".claude" / "projects" / "-Users-YOUR_USERNAME" / "memory"
     if memory_dir.exists():
         for f in sorted(memory_dir.iterdir()):
             if f.is_file() and f.suffix in (".md", ".json"):
@@ -86,7 +86,7 @@ CREDENTIAL_MAP = [
     ("env/telegram-claude-bot",    HOME / "telegram-claude-bot" / ".env"),
     ("env/task-worker",            HOME / "task-worker" / ".env"),
     ("env/aceable-agent",          HOME / "aceable-agent" / ".env"),
-    ("env/bartimaeus-mobile",      HOME / "bartimaeus-mobile" / ".env"),
+    ("env/YOUR_BOT_NAME-mobile",      HOME / "YOUR_BOT_NAME-mobile" / ".env"),
     ("env/land-sales-portal",      HOME / "land-sales-portal" / ".env"),
     ("env/altum-realty-app",       HOME / "altum-realty-app" / ".env"),
     ("google/credentials",         HOME / ".config" / "google" / "credentials.json"),
@@ -108,7 +108,7 @@ REPOS = [
     ("land-bot",              "YOUR_GITHUB_ORG", "master"),
     ("telegram-claude-bot",   "YOUR_GITHUB_ORG", "master"),
     ("agent-dashboard",       "YOUR_GITHUB_ORG", "master"),
-    ("bartimaeus-mobile",     "YOUR_GITHUB_ORG", "main"),
+    ("YOUR_BOT_NAME-mobile",     "YOUR_GITHUB_ORG", "main"),
     ("stocks",                "YOUR_GITHUB_ORG", "master"),
     ("task-worker",           "YOUR_GITHUB_ORG", "master"),
     ("aceable-agent",         "YOUR_GITHUB_ORG", "master"),
@@ -441,7 +441,7 @@ def _s3_key_to_local_path(s3_key):
     mapping = {
         "claude":            HOME / ".claude",
         "project-claude-md": HOME,
-        "memory":            HOME / ".claude" / "projects" / "-Users-bartimaeus" / "memory",
+        "memory":            HOME / ".claude" / "projects" / "-Users-YOUR_USERNAME" / "memory",
         "abilities":         HOME / "telegram-claude-bot" / "abilities",
         "bin":               HOME / "bin",
         "schedule-wrappers": HOME / ".schedule" / "wrappers",
@@ -579,7 +579,7 @@ def cmd_backup_creds():
                 Value=value,
                 Type="SecureString",
                 Overwrite=True,
-                Description=f"Bartimaeus credential: {suffix}",
+                Description=f"YOUR_BOT_NAME credential: {suffix}",
             )
             stored += 1
             print(f"  + {suffix}")

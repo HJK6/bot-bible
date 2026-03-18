@@ -5,7 +5,7 @@ Schedule one-time and recurring tasks on this machine using macOS `launchd`.
 ## Tool Location
 
 ```
-/Users/bartimaeus/bin/schedule
+/Users/YOUR_USERNAME/bin/schedule
 ```
 
 ## Commands
@@ -44,7 +44,7 @@ schedule recurring "<H:M> <days>" "<command>" [--tag <tag>]
 
 **Examples:**
 ```bash
-schedule recurring "15:30 weekdays" "/Users/bartimaeus/trading-bot/eod_review.sh" --tag trading-eod
+schedule recurring "15:30 weekdays" "/Users/YOUR_USERNAME/trading-bot/eod_review.sh" --tag trading-eod
 schedule recurring "09:00 daily" "python3 ~/scripts/morning_check.py" --tag morning-check
 schedule recurring "08:00 MWF" "python3 ~/scripts/mwf_task.py" --tag mwf-task
 ```
@@ -76,7 +76,7 @@ Prints the log file for a specific job.
 ## How It Works
 
 - Creates a wrapper script at `~/.schedule/wrappers/<tag>.sh`
-- Creates a LaunchAgent plist at `~/Library/LaunchAgents/com.bartimaeus.schedule.<tag>.plist`
+- Creates a LaunchAgent plist at `~/Library/LaunchAgents/com.YOUR_BOT_NAME.schedule.<tag>.plist`
 - Uses `StartCalendarInterval` for time-based scheduling
 - Logs all activity to `~/.schedule/jobs.log`
 - Per-job logs at `~/.schedule/<tag>.log`

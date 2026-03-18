@@ -4,7 +4,7 @@ import time
 import boto3
 from handlers.apigw import apigw_adapter
 
-MEDIA_BUCKET = os.environ.get("MEDIA_BUCKET", "bartimaeus-chat-media")
+MEDIA_BUCKET = os.environ.get("MEDIA_BUCKET", "YOUR_BOT_NAME-chat-media")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 s3_client = boto3.client("s3", region_name=REGION)
 

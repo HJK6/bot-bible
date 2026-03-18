@@ -124,7 +124,7 @@ Key points:
 - With ChatGPT Plus auth, only the default model works (no `-m` flag)
 - Parallelize with 5+ concurrent calls for throughput (~10K items/min)
 
-Example: `bulk_classify.py` in `/Users/bartimaeus/nse/` classifies 95K stock announcements this way.
+Example: `bulk_classify.py` in `/Users/YOUR_USERNAME/nse/` classifies 95K stock announcements this way.
 
 ## Notes
 

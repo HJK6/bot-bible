@@ -1,5 +1,5 @@
 {
-  "name": "bartimaeus-mobile",
+  "name": "YOUR_BOT_NAME-mobile",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {

@@ -42,7 +42,7 @@ export default function UpdateCard({ message }: Props) {
         <View style={styles.accent} />
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.sender}>{message.sender || 'Bartimaeus'}</Text>
+            <Text style={styles.sender}>{message.sender || 'YOUR_BOT_NAME'}</Text>
             <Text style={styles.time}>{formatRelativeTime(message.timestamp)}</Text>
           </View>
           <Text selectable style={styles.body}>{message.message}</Text>

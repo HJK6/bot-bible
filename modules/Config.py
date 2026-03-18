@@ -14,7 +14,7 @@ PROJECTS_TABLE = os.environ.get("PROJECTS_TABLE", "Projects")
 
 # S3 (resolved from SSM at deploy time)
 CODE_BUCKET = os.environ.get("CODE_BUCKET", "altum-deployment-assets")
-MEDIA_BUCKET = os.environ.get("MEDIA_BUCKET", "bartimaeus-chat-media")
+MEDIA_BUCKET = os.environ.get("MEDIA_BUCKET", "YOUR_BOT_NAME-chat-media")
 
 # Region
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")

@@ -43,7 +43,7 @@ Resources:
       Environment:
         Variables:
           ORCHESTRATOR_QUEUE_URL: !Ref OrchestratorInbox
-          TWILIO_AUTH_TOKEN_SSM: '/bartimaeus/creds/twilio-auth-token'
+          TWILIO_AUTH_TOKEN_SSM: '/YOUR_BOT_NAME/creds/twilio-auth-token'
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -64,7 +64,7 @@ Resources:
       Environment:
         Variables:
           ORCHESTRATOR_QUEUE_URL: !Ref OrchestratorInbox
-          MEDIA_BUCKET: bartimaeus-chat-media
+          MEDIA_BUCKET: YOUR_BOT_NAME-chat-media
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -86,7 +86,7 @@ Resources:
       Role: !GetAtt DashboardLambdaExecutionRole.Arn
       Environment:
         Variables:
-          VOICE_CALLS_TABLE: !Ref BartVoiceCalls
+          VOICE_CALLS_TABLE: !Ref BotVoiceCalls
       FunctionUrlConfig:
         AuthType: NONE
         Cors:

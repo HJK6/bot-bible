@@ -47,7 +47,7 @@ Resources:
         Enabled: true
         DefaultRootObject: index.html
         Aliases:
-          - bartimaeus.quest
+          - YOUR_DOMAIN
         ViewerCertificate:
           AcmCertificateArn: !Ref CertificateArn
           SslSupportMethod: sni-only

@@ -4,12 +4,12 @@ Autonomous bot that completes TX real estate courses on Aceable.
 
 ## Location
 
-Repo: `/Users/bartimaeus/aceable-agent/`
+Repo: `/Users/YOUR_USERNAME/aceable-agent/`
 
 ## How to Start
 
 ```bash
-cd /Users/bartimaeus/aceable-agent
+cd /Users/YOUR_USERNAME/aceable-agent
 python aceable_bot.py
 ```
 
@@ -46,13 +46,13 @@ Watch for: current page type (video/quiz/content), progress stats, errors.
 
 ### Log file
 ```
-/Users/bartimaeus/aceable-agent/logs/aceable_bot.log
+/Users/YOUR_USERNAME/aceable-agent/logs/aceable_bot.log
 ```
 
 ### Debug snapshots
 When errors occur, HTML is saved to:
 ```
-/Users/bartimaeus/aceable-agent/debug/
+/Users/YOUR_USERNAME/aceable-agent/debug/
 ```
 Open these in a browser to see what the bot was looking at when it failed.
 

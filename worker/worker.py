@@ -1,7 +1,7 @@
-#!/Users/bartimaeus/task-worker/.venv/bin/python3.13
+#!/Users/YOUR_USERNAME/task-worker/.venv/bin/python3.13
 """
 Task Worker Bot
-Polls the BartimaeusRequests SQS queue for tasks and dispatches them
+Polls the BotRequests SQS queue for tasks and dispatches them
 to the appropriate repo's tasks/ folder.
 
 Message format: {"repo": "land-bot", "task": "aggregateLandData", "data": {...}}
@@ -22,17 +22,17 @@ import time
 import traceback
 from datetime import datetime
 
-CLAUDE_PATH = "/Users/bartimaeus/.local/bin/claude"
+CLAUDE_PATH = "/Users/YOUR_USERNAME/.local/bin/claude"
 
 # Memory event logging
-sys.path.insert(0, "/Users/bartimaeus/memory-system")
+sys.path.insert(0, "/Users/YOUR_USERNAME/memory-system")
 from memory_system.log import log_event as _log_event
 def mem_log(category, summary, **kwargs):
     try: _log_event("task-worker", category, summary, **kwargs)
     except Exception: pass
 
-QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BartimaeusRequests"
-DLQ_URL = "https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BartimaeusRequests-DLQ"
+QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BotRequests"
+DLQ_URL = "https://sqs.us-east-1.amazonaws.com/YOUR_AWS_ACCOUNT_ID/BotRequests-DLQ"
 AWS_REGION = "us-east-1"
 
 POLL_WAIT_SECONDS = 20  # SQS long polling
@@ -47,9 +47,9 @@ class SimpleLogger:
 _logger = SimpleLogger()
 
 REPO_MAP = {
-    "land-bot": "/Users/bartimaeus/land-bot",
-    "memory-system": "/Users/bartimaeus/memory-system",
-    "stocks": "/Users/bartimaeus/nse",
+    "land-bot": "/Users/YOUR_USERNAME/land-bot",
+    "memory-system": "/Users/YOUR_USERNAME/memory-system",
+    "stocks": "/Users/YOUR_USERNAME/nse",
 }
 
 session = boto3.Session(region_name=AWS_REGION)
@@ -250,7 +250,7 @@ def update_dashboard(tasks_completed, tasks_failed):
 
 
 def run():
-    log("Task Worker started, polling BartimaeusRequests queue")
+    log("Task Worker started, polling BotRequests queue")
     tasks_completed = 0
     tasks_failed = 0
 
@@ -362,7 +362,7 @@ def run():
 # Dashboard tracker (optional — works without it)
 tracker = None
 try:
-    sys.path.insert(0, "/Users/bartimaeus/agent-dashboard/tracker")
+    sys.path.insert(0, "/Users/YOUR_USERNAME/agent-dashboard/tracker")
     from tracker import BotTracker
     tracker = BotTracker("task-worker", "Task Worker", title="Task Worker")
     print("[Tracker] Registered with dashboard")

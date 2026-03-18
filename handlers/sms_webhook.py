@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 import boto3
 
 QUEUE_URL = os.environ.get("ORCHESTRATOR_QUEUE_URL", "")
-TWILIO_AUTH_TOKEN_SSM = os.environ.get("TWILIO_AUTH_TOKEN_SSM", "/bartimaeus/creds/twilio-auth-token")
+TWILIO_AUTH_TOKEN_SSM = os.environ.get("TWILIO_AUTH_TOKEN_SSM", "/YOUR_BOT_NAME/creds/twilio-auth-token")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 sqs = boto3.client("sqs", region_name=REGION)

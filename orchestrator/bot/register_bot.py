@@ -21,7 +21,7 @@ import urllib.request
 from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.insert(0, "/Users/bartimaeus/land-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 
 import boto3
 
@@ -48,7 +48,7 @@ def cmd_invite(args):
     }
 
     ssm.put_parameter(
-        Name=f"/bartimaeus/botcomm/reg/{token}",
+        Name=f"/YOUR_BOT_NAME/botcomm/reg/{token}",
         Value=json.dumps(token_data),
         Type="SecureString",
         Overwrite=True,
@@ -66,7 +66,7 @@ def cmd_invite(args):
     print(f"     - registration_complete: contains your api_key and hmac_secret")
     print(f"     - key_rotation: contains your new_api_key (switch within 48h)")
     print(f"")
-    print(f"  2. POST to Bartimaeus's webhook:")
+    print(f"  2. POST to YOUR_BOT_NAME's webhook:")
     print(f"     {{")
     print(f'       "message_type": "register",')
     print(f'       "registration_token": "{token}",')
@@ -76,7 +76,7 @@ def cmd_invite(args):
     print(f'       "capabilities": ["weather", "search"]')
     print(f"     }}")
     print(f"")
-    print(f"  3. Bartimaeus will challenge your webhook, then deliver")
+    print(f"  3. YOUR_BOT_NAME will challenge your webhook, then deliver")
     print(f"     your API key + HMAC secret directly to your endpoint.")
     print()
 
@@ -147,7 +147,7 @@ def cmd_rotate_key(args):
 
     # Update SSM
     ssm.put_parameter(
-        Name=f"/bartimaeus/botcomm/keys/{bot_id}",
+        Name=f"/YOUR_BOT_NAME/botcomm/keys/{bot_id}",
         Value=new_hash,
         Type="SecureString",
         Overwrite=True,
@@ -239,7 +239,7 @@ def cmd_revoke(args):
 
     # Delete key from SSM
     try:
-        ssm.delete_parameter(Name=f"/bartimaeus/botcomm/keys/{bot_id}")
+        ssm.delete_parameter(Name=f"/YOUR_BOT_NAME/botcomm/keys/{bot_id}")
     except ssm.exceptions.ParameterNotFound:
         pass
 

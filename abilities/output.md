@@ -1,16 +1,16 @@
 # Web Output
 
-Push rich markdown content to `bartimaeus.quest` for clean browser viewing. Two modes: **private** (auth-protected) and **public** (shareable).
+Push rich markdown content to `YOUR_DOMAIN` for clean browser viewing. Two modes: **private** (auth-protected) and **public** (shareable).
 
 ## Private Output (auth-protected)
 
-Push to `bartimaeus.quest/output` — requires Cognito login. Auto-refreshes every 5 seconds. Only one private output at a time (overwrites previous).
+Push to `YOUR_DOMAIN/output` — requires Cognito login. Auto-refreshes every 5 seconds. Only one private output at a time (overwrites previous).
 
 ```python
 import boto3, json, time
 s3 = boto3.client('s3', region_name='us-east-1')
 s3.put_object(
-    Bucket='bartimaeus-chat-media',
+    Bucket='YOUR_BOT_NAME-chat-media',
     Key='output/current.json',
     Body=json.dumps({
         'title': 'Report Title',
@@ -21,17 +21,17 @@ s3.put_object(
 )
 ```
 
-URL: `bartimaeus.quest/output`
+URL: `YOUR_DOMAIN/output`
 
 ## Public Output (shareable, no auth)
 
-Push to `bartimaeus.quest/public/<id>` — no login required. Anyone with the link can view. Multiple public pages can coexist (each has its own ID/slug).
+Push to `YOUR_DOMAIN/public/<id>` — no login required. Anyone with the link can view. Multiple public pages can coexist (each has its own ID/slug).
 
 ```python
 import boto3, json, time
 s3 = boto3.client('s3', region_name='us-east-1')
 s3.put_object(
-    Bucket='bartimaeus-chat-media',
+    Bucket='YOUR_BOT_NAME-chat-media',
     Key='public/my-page-slug.json',  # slug becomes the URL path
     Body=json.dumps({
         'title': 'Page Title',
@@ -42,7 +42,7 @@ s3.put_object(
 )
 ```
 
-URL: `bartimaeus.quest/public/my-page-slug`
+URL: `YOUR_DOMAIN/public/my-page-slug`
 
 ## JSON Format
 
@@ -69,7 +69,7 @@ URL: `bartimaeus.quest/public/my-page-slug`
 
 - **Private** (`/output`): auto-refreshes every 5 seconds, requires Cognito auth, single page (overwritten)
 - **Public** (`/public/<id>`): no auth, shareable links, multiple pages can coexist, manual refresh button
-- S3 bucket: `bartimaeus-chat-media` — `output/` prefix for private, `public/` prefix for public
+- S3 bucket: `YOUR_BOT_NAME-chat-media` — `output/` prefix for private, `public/` prefix for public
 - Public prefix has an S3 bucket policy allowing anonymous `s3:GetObject`
 - Content persists until overwritten — no expiry
 - Web-only pages — redirect to home on mobile

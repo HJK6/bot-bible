@@ -7,7 +7,7 @@
     <key>CFBundleName</key>
     <string>Tmux Sessions</string>
     <key>CFBundleIdentifier</key>
-    <string>com.bartimaeus.tmux-sessions</string>
+    <string>com.YOUR_BOT_NAME.tmux-sessions</string>
     <key>CFBundleVersion</key>
     <string>1.0</string>
     <key>CFBundlePackageType</key>

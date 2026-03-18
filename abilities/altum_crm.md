@@ -2,7 +2,7 @@
 
 React + TypeScript sales CRM for land acquisition. Agents manage leads, call owners via Twilio, send SMS, and track pipeline.
 
-**Repo**: `/Users/bartimaeus/land-sales-portal/`
+**Repo**: `/Users/YOUR_USERNAME/land-sales-portal/`
 **Stack**: React 19 + TypeScript + Vite + MUI + AWS Amplify + Twilio Voice SDK
 **Dev**: `npm run dev`
 **Build**: `npm run build` → `dist/`

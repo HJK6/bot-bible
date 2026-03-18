@@ -17,7 +17,7 @@ Append `.json` to any Reddit URL. No API key, no OAuth, no setup. Rate limited t
 ```python
 import requests, time
 
-HEADERS = {'User-Agent': 'Bartimaeus/1.0'}
+HEADERS = {'User-Agent': 'YOUR_BOT_NAME/1.0'}
 BASE = 'https://www.reddit.com'
 
 def reddit_get(path, params=None):
@@ -142,12 +142,12 @@ Full OAuth access via PRAW (Python Reddit API Wrapper). **Requires Reddit API ap
 
 1. Go to https://www.reddit.com/prefs/apps/
 2. Click "create another app..."
-3. Fill in: name=`bartimaeus`, type=`script`, redirect uri=`http://localhost:8080`
+3. Fill in: name=`YOUR_BOT_NAME`, type=`script`, redirect uri=`http://localhost:8080`
 4. Store credentials:
 
 ```bash
-py /Users/bartimaeus/telegram-claude-bot/modules/passwords.py set reddit_client_id "YOUR_CLIENT_ID"
-py /Users/bartimaeus/telegram-claude-bot/modules/passwords.py set reddit_client_secret "YOUR_CLIENT_SECRET"
+py /Users/YOUR_USERNAME/telegram-claude-bot/modules/passwords.py set reddit_client_id "YOUR_CLIENT_ID"
+py /Users/YOUR_USERNAME/telegram-claude-bot/modules/passwords.py set reddit_client_secret "YOUR_CLIENT_SECRET"
 ```
 
 ### Quick Usage
@@ -158,7 +158,7 @@ import subprocess
 
 def get_secret(key):
     r = subprocess.run(
-        ['py', '/Users/bartimaeus/telegram-claude-bot/modules/passwords.py', 'get', key],
+        ['py', '/Users/YOUR_USERNAME/telegram-claude-bot/modules/passwords.py', 'get', key],
         capture_output=True, text=True
     )
     return r.stdout.strip()
@@ -166,7 +166,7 @@ def get_secret(key):
 reddit = praw.Reddit(
     client_id=get_secret('reddit_client_id'),
     client_secret=get_secret('reddit_client_secret'),
-    user_agent='Bartimaeus/1.0'
+    user_agent='YOUR_BOT_NAME/1.0'
 )
 ```
 
@@ -225,6 +225,6 @@ print(user.link_karma, user.comment_karma)
 
 ## Reddit Account
 
-- Username: `bartimaeus_bot03`
+- Username: `YOUR_REDDIT_USERNAME`
 - Email: `YOUR_REDDIT_EMAIL`
 - Password: `YOUR_REDDIT_PASSWORD`

@@ -4,7 +4,7 @@ Manage domains and DNS records via the Porkbun API. Supports full DNS CRUD, doma
 
 ## Location
 
-Source: `/Users/bartimaeus/telegram-claude-bot/modules/porkbun.py`
+Source: `/Users/YOUR_USERNAME/telegram-claude-bot/modules/porkbun.py`
 
 ## Setup
 
@@ -79,7 +79,7 @@ from modules.porkbun import ping, list_domains, get_dns_records, create_dns_reco
 ## CLI Test
 
 ```bash
-cd /Users/bartimaeus/telegram-claude-bot
+cd /Users/YOUR_USERNAME/telegram-claude-bot
 python3 modules/porkbun.py
 ```
 

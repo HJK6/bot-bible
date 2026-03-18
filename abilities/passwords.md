@@ -5,7 +5,7 @@ All credentials are stored in **AWS SSM Parameter Store** as `SecureString` para
 ## SSM Path Convention
 
 ```
-/bartimaeus/creds/{service_name}
+/YOUR_BOT_NAME/creds/{service_name}
 ```
 
 - `service_name` is lowercase, hyphenated (e.g., `propstream`, `mls-matrix`, `gmail-smtp`)
@@ -32,7 +32,7 @@ ssm = boto3.client('ssm', region_name='us-east-1')
 def get_creds(service: str) -> dict:
     """Get decrypted credentials for a service."""
     resp = ssm.get_parameter(
-        Name=f'/bartimaeus/creds/{service}',
+        Name=f'/YOUR_BOT_NAME/creds/{service}',
         WithDecryption=True
     )
     return json.loads(resp['Parameter']['Value'])
@@ -44,7 +44,7 @@ def get_cred(service: str, key: str) -> str:
 def set_creds(service: str, creds: dict):
     """Store credentials for a service (overwrites existing)."""
     ssm.put_parameter(
-        Name=f'/bartimaeus/creds/{service}',
+        Name=f'/YOUR_BOT_NAME/creds/{service}',
         Value=json.dumps(creds),
         Type='SecureString',
         Overwrite=True
@@ -93,6 +93,6 @@ The credential index lives at `memory/credentials.md`. It maps service names to 
 ## Security Notes
 
 - SSM SecureString uses the default `aws/ssm` KMS key (free, managed by AWS)
-- IAM policy on this machine's credentials allows `ssm:GetParameter`, `ssm:PutParameter`, `ssm:DeleteParameter` on `/bartimaeus/creds/*`
+- IAM policy on this machine's credentials allows `ssm:GetParameter`, `ssm:PutParameter`, `ssm:DeleteParameter` on `/YOUR_BOT_NAME/creds/*`
 - Never log or print decrypted credential values
 - The index file is safe to commit — it contains no secrets

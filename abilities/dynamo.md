@@ -4,8 +4,8 @@ Read and write to DynamoDB tables via the `Table` class.
 
 ## Location
 
-Source: `/Users/bartimaeus/land-bot/modules/Dynamo.py`
-AWS session: `/Users/bartimaeus/land-bot/modules/AWS.py` (uses credentials from `modules/Config.py`)
+Source: `/Users/YOUR_USERNAME/land-bot/modules/Dynamo.py`
+AWS session: `/Users/YOUR_USERNAME/land-bot/modules/AWS.py` (uses credentials from `modules/Config.py`)
 
 ## Setup
 
@@ -14,7 +14,7 @@ Requires AWS credentials configured in `land-bot/modules/Config.py` (`AWS_ACCESS
 ```python
 # PYTHONPATH must include land-bot root
 import sys
-sys.path.insert(0, "/Users/bartimaeus/land-bot")
+sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 
 from modules.Dynamo import Table
 ```

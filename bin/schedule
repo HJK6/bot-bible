@@ -1,5 +1,5 @@
 #!/bin/bash
-# schedule — Standardized task scheduler for Bartimaeus (launchd-based)
+# schedule — Standardized task scheduler for YOUR_BOT_NAME (launchd-based)
 # Manages one-time and recurring scheduled tasks via macOS LaunchAgents.
 #
 # Usage:
@@ -15,17 +15,17 @@
 #   schedule once "2026-02-12 01:20" "cd ~/aceable-agent && python3 aceable_bot.py &" --tag aceable-restart
 #
 # Recurring examples:
-#   schedule recurring "15:30 weekdays" "/Users/bartimaeus/trading-bot/eod_review.sh" --tag trading-eod
+#   schedule recurring "15:30 weekdays" "/Users/YOUR_USERNAME/trading-bot/eod_review.sh" --tag trading-eod
 #   schedule recurring "09:00 daily" "echo good morning" --tag morning
 #   schedule recurring "08:00 MWF" "echo mon-wed-fri" --tag mwf-task
 
 set -euo pipefail
 
-SCHEDULE_DIR="/Users/bartimaeus/.schedule"
+SCHEDULE_DIR="/Users/YOUR_USERNAME/.schedule"
 SCHEDULE_LOG="$SCHEDULE_DIR/jobs.log"
 PLIST_DIR="$HOME/Library/LaunchAgents"
 WRAPPER_DIR="$SCHEDULE_DIR/wrappers"
-PLIST_PREFIX="com.bartimaeus.schedule"
+PLIST_PREFIX="com.YOUR_BOT_NAME.schedule"
 
 mkdir -p "$SCHEDULE_DIR" "$WRAPPER_DIR"
 touch "$SCHEDULE_LOG"
@@ -344,7 +344,7 @@ PLIST_EOF
 }
 
 cmd_list() {
-    local list_script="/Users/bartimaeus/bin/schedule-list"
+    local list_script="/Users/YOUR_USERNAME/bin/schedule-list"
     if [ -x "$list_script" ]; then
         "$list_script" "$@"
     else
@@ -398,7 +398,7 @@ cmd_remove() {
 
 sync_dashboard() {
     # Sync schedule data to S3 for dashboard (fire-and-forget)
-    local list_script="/Users/bartimaeus/bin/schedule-list"
+    local list_script="/Users/YOUR_USERNAME/bin/schedule-list"
     if [ -x "$list_script" ]; then
         "$list_script" --sync &>/dev/null &
     fi

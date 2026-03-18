@@ -31,7 +31,7 @@ from Models import ScraperAction, ScraperStep, ScrapeResult, DiscoveredApi
 import importlib.util
 
 _wm_spec = importlib.util.spec_from_file_location(
-    "WebManager", "/Users/bartimaeus/aceable-agent/modules/WebManager.py"
+    "WebManager", "/Users/YOUR_USERNAME/aceable-agent/modules/WebManager.py"
 )
 _wm_module = importlib.util.module_from_spec(_wm_spec)
 _wm_spec.loader.exec_module(_wm_module)

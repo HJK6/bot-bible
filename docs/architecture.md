@@ -45,7 +45,7 @@ Friend Bot → Lambda (bot_webhook.py, HMAC-signed) → SQS → Orchestrator
 
 ### Task Worker
 ```
-Producer (scraper/Lambda/orchestrator) → SQS (BartimaeusRequests)
+Producer (scraper/Lambda/orchestrator) → SQS (BotRequests)
                                             ↓
                                     worker.poll_queue()
                                             ↓
@@ -97,10 +97,10 @@ Producer (scraper/Lambda/orchestrator) → SQS (BartimaeusRequests)
 | BotCommBots | bot_id | — | Registered friend bots |
 | BotCommSessions | bot_id | session_id | Bot conversation sessions |
 | BotCommMessages | session_id | message_id | Individual messages |
-| BartSmsContacts | phone | — | SMS contact directory |
-| BartSmsSessions | phone | session_id | SMS conversation sessions |
-| BartSmsMessages | session_id | message_id | SMS messages |
-| BartSmsExpenses | event_id | expense_id | Expense entries |
+| BotSmsContacts | phone | — | SMS contact directory |
+| BotSmsSessions | phone | session_id | SMS conversation sessions |
+| BotSmsMessages | session_id | message_id | SMS messages |
+| BotSmsExpenses | event_id | expense_id | Expense entries |
 
 ## API Endpoints
 

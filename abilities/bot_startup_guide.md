@@ -1,16 +1,16 @@
 # Bot Startup Guide
 
-Help a friend set up their own bot infrastructure modeled after Bartimaeus. Covers CloudFormation, orchestrator, mobile app, memory system, tmux, and CLAUDE.md identity.
+Help a friend set up their own bot infrastructure modeled after YOUR_BOT_NAME. Covers CloudFormation, orchestrator, mobile app, memory system, tmux, and CLAUDE.md identity.
 
 ## Playbook Location
 
-- **S3**: `s3://bartimaeus-chat-media/bot-data/matt-bot/tars_playbook.md`
+- **S3**: `s3://YOUR_BOT_NAME-chat-media/bot-data/matt-bot/tars_playbook.md`
 - **Local copy**: `/tmp/tars_playbook.md` (ephemeral)
 - Generate a fresh presigned URL when sharing:
   ```python
   import boto3
   s3 = boto3.client('s3', region_name='us-east-1')
-  url = s3.generate_presigned_url('get_object', Params={'Bucket': 'bartimaeus-chat-media', 'Key': 'bot-data/matt-bot/tars_playbook.md'}, ExpiresIn=604800)
+  url = s3.generate_presigned_url('get_object', Params={'Bucket': 'YOUR_BOT_NAME-chat-media', 'Key': 'bot-data/matt-bot/tars_playbook.md'}, ExpiresIn=604800)
   ```
 
 ## What the Playbook Covers
@@ -21,7 +21,7 @@ Help a friend set up their own bot infrastructure modeled after Bartimaeus. Cove
 4. **Memory system** — DynamoDB MemoryEvents, FAISS embeddings, daily summaries
 5. **tmux config** — mouse, 50k scrollback, session-closed hook for AgentTracker cleanup
 6. **CLAUDE.md** — bot identity, owner info, abilities system, model usage rules
-7. **BotComm** — registration with Bartimaeus, send/poll scripts
+7. **BotComm** — registration with YOUR_BOT_NAME, send/poll scripts
 
 ## How to Use
 

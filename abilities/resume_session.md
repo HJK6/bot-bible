@@ -49,7 +49,7 @@ for msg in resp['Items']:
 **Option A — Local session file** (preferred, has full conversation history):
 ```python
 import json
-with open(f'/Users/bartimaeus/.claude/orchestrator/sessions/{AGENT_ID}.json') as f:
+with open(f'/Users/YOUR_USERNAME/.claude/orchestrator/sessions/{AGENT_ID}.json') as f:
     session = json.load(f)
 session_id = session['session_id']          # Claude Code UUID
 goal = session['goal']
@@ -111,7 +111,7 @@ chat.put_item(Item={
     'timestamp': int(time.time() * 1000),
     'direction': 'outbound',
     'message': RESPONSE_TEXT[:5000],
-    'sender': 'Bartimaeus',
+    'sender': 'YOUR_BOT_NAME',
     'ttl': int(time.time()) + (7 * 86400),
 })
 ```

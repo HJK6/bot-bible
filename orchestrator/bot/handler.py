@@ -26,11 +26,11 @@ FALLBACK_GAP_MS = 24 * 60 * 60 * 1000
 COMPACT_THRESHOLD = 20
 COMPACT_KEEP_RECENT = 5
 
-MEDIA_BUCKET = "bartimaeus-chat-media"
+MEDIA_BUCKET = "YOUR_BOT_NAME-chat-media"
 AWS_REGION = "us-east-1"
 
 # SSM path for the shared HMAC secret used to sign outbound messages
-HMAC_SECRET_SSM = "/bartimaeus/botcomm/secret"
+HMAC_SECRET_SSM = "/YOUR_BOT_NAME/botcomm/secret"
 
 _hmac_secret_cache = None
 
@@ -162,7 +162,7 @@ class BotHandler:
         # Build conversation history snippet
         history_lines = []
         for msg in recent:
-            direction = "Friend" if msg.direction == "inbound" else "Bartimaeus"
+            direction = "Friend" if msg.direction == "inbound" else "YOUR_BOT_NAME"
             history_lines.append(f"{direction}: {msg.body[:300]}")
         history = "\n".join(history_lines) if history_lines else "(no recent messages)"
 
@@ -267,7 +267,7 @@ Reply with exactly one word: continue or new"""
         return active
 
     async def _handle_capability_query(self, bot: BotCommBot, session: BotCommSession, query: str):
-        """Respond to a capability query with Bartimaeus's capabilities."""
+        """Respond to a capability query with YOUR_BOT_NAME's capabilities."""
         capabilities = [
             "weather — current conditions and forecasts via Open-Meteo",
             "sms — send/receive SMS via Twilio",
@@ -283,7 +283,7 @@ Reply with exactly one word: continue or new"""
             "notes — Apple Notes read/create/search",
         ]
 
-        response = f"Bartimaeus capabilities:\n" + "\n".join(f"- {c}" for c in capabilities)
+        response = f"YOUR_BOT_NAME capabilities:\n" + "\n".join(f"- {c}" for c in capabilities)
 
         await self.send_message(
             bot_id=bot.bot_id,
@@ -311,7 +311,7 @@ Reply with exactly one word: continue or new"""
 
         # Build payload
         payload = {
-            "bot_id": "bartimaeus",
+            "bot_id": "YOUR_BOT_NAME",
             "message_id": _ulid(),
             "message_type": message_type,
             "message": message,
@@ -331,7 +331,7 @@ Reply with exactly one word: continue or new"""
                 data=json.dumps(payload).encode(),
                 headers={
                     "Content-Type": "application/json",
-                    "X-Bartimaeus-Signature": signature,
+                    "X-YOUR_BOT_NAME-Signature": signature,
                 },
             )
             resp = urllib.request.urlopen(req, timeout=15)
@@ -395,7 +395,7 @@ Reply with exactly one word: continue or new"""
 
         summary_parts = []
         for msg in to_summarize:
-            direction = "Friend" if msg.direction == "inbound" else "Bartimaeus"
+            direction = "Friend" if msg.direction == "inbound" else "YOUR_BOT_NAME"
             summary_parts.append(f"[{msg.message_type}] {direction}: {msg.body[:200]}")
 
         summary = f"Compacted {len(to_summarize)} messages. Topics: " + "; ".join(

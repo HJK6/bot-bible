@@ -4,7 +4,7 @@ set -e
 
 APP_NAME="Tmux Sessions"
 BUNDLE="$APP_NAME.app"
-PYTHON="/Users/bartimaeus/.venvs/global/bin/python"
+PYTHON="/Users/YOUR_USERNAME/.venvs/global/bin/python"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
 rm -rf "$DIR/$BUNDLE"
@@ -17,7 +17,7 @@ cp "$DIR/app.py" "$DIR/$BUNDLE/Contents/Resources/"
 cat > "$DIR/$BUNDLE/Contents/MacOS/launcher" << 'EOF'
 #!/bin/bash
 DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
-exec /Users/bartimaeus/.venvs/global/bin/python "$DIR/app.py"
+exec /Users/YOUR_USERNAME/.venvs/global/bin/python "$DIR/app.py"
 EOF
 chmod +x "$DIR/$BUNDLE/Contents/MacOS/launcher"
 

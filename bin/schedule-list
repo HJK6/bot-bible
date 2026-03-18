@@ -1,4 +1,4 @@
-#!/usr/bin/env /Users/bartimaeus/.venvs/global/bin/python
+#!/usr/bin/env /Users/YOUR_USERNAME/.venvs/global/bin/python
 """Rich schedule list — shows all launchd scheduled jobs grouped by category with times."""
 
 import json
@@ -10,7 +10,7 @@ from pathlib import Path
 PLIST_DIR = Path.home() / "Library" / "LaunchAgents"
 WRAPPER_DIR = Path.home() / ".schedule" / "wrappers"
 JOBS_LOG = Path.home() / ".schedule" / "jobs.log"
-PREFIX = "com.bartimaeus.schedule"
+PREFIX = "com.YOUR_BOT_NAME.schedule"
 
 WEEKDAY_NAMES = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
 MONTH_NAMES = {1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
@@ -23,7 +23,7 @@ CATEGORIES = {
     "0dte": "Trading", "futures": "Trading", "fyers": "Trading",
     "aceable": "Aceable",
     "cold": "Land", "lgbs": "Land", "foreclosures": "Land",
-    "claude": "System", "heartbeat": "System", "bart": "System", "schedule": "System",
+    "claude": "System", "heartbeat": "System", "bot": "System", "schedule": "System",
 }
 
 CATEGORY_ORDER = ["Stocks", "Trading", "Land", "Aceable", "System", "Other", "Stale"]

@@ -2,7 +2,7 @@ Resources:
   ChatMediaBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: bartimaeus-chat-media
+      BucketName: YOUR_BOT_NAME-chat-media
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -23,7 +23,7 @@ Resources:
   ExpenseReceiptsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: bartimaeus-expense-receipts
+      BucketName: YOUR_BOT_NAME-expense-receipts
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

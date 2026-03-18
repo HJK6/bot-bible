@@ -7,11 +7,11 @@ Two providers — NWS (primary, US-only) and Open-Meteo (fallback, global). Both
 ```bash
 # --- NWS (US only, more accurate) ---
 # Step 1: Get grid from lat/lon
-curl -s "https://api.weather.gov/points/32.78,-96.81" -H "User-Agent: Bartimaeus"
+curl -s "https://api.weather.gov/points/32.78,-96.81" -H "User-Agent: YOUR_BOT_NAME"
 # → returns forecast URL like https://api.weather.gov/gridpoints/FWD/89,104/forecast
 
 # Step 2: Get forecast
-curl -s "https://api.weather.gov/gridpoints/FWD/89,104/forecast" -H "User-Agent: Bartimaeus"
+curl -s "https://api.weather.gov/gridpoints/FWD/89,104/forecast" -H "User-Agent: YOUR_BOT_NAME"
 
 # --- Open-Meteo (global fallback) ---
 # Geocode city → lat/lon
@@ -26,7 +26,7 @@ curl -s "https://api.open-meteo.com/v1/forecast?latitude=32.78&longitude=-96.81&
 ```python
 import requests
 
-HEADERS = {"User-Agent": "Bartimaeus"}
+HEADERS = {"User-Agent": "YOUR_BOT_NAME"}
 
 # ── Geocoding (Open-Meteo, works globally) ──
 
@@ -125,7 +125,7 @@ def weather(city: str) -> str:
 - **Forecast**: `GET https://api.weather.gov/gridpoints/{office}/{x},{y}/forecast` → 7-day periods with text
 - **Hourly**: `GET https://api.weather.gov/gridpoints/{office}/{x},{y}/forecast/hourly`
 - **Alerts**: `GET https://api.weather.gov/alerts/active?point={lat},{lon}`
-- **Header required**: `User-Agent: Bartimaeus`
+- **Header required**: `User-Agent: YOUR_BOT_NAME`
 - US-only, free, no key, no rate limit published (be reasonable)
 
 ## Open-Meteo API Reference

@@ -14,7 +14,7 @@ import sys
 
 import boto3
 
-SSM_PREFIX = "/bartimaeus/creds/"
+SSM_PREFIX = "/YOUR_BOT_NAME/creds/"
 ssm = boto3.client("ssm", region_name="us-east-1")
 
 

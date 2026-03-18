@@ -2,7 +2,7 @@
 
 Land acquisition CRM with county scrapers, skip-trace pipeline, DynamoDB storage, and SQS task dispatch.
 
-**Repo**: `/Users/bartimaeus/land-bot/`
+**Repo**: `/Users/YOUR_USERNAME/land-bot/`
 **Run scripts**: `PYTHONPATH=. python3 scripts/<script>.py` (from repo root)
 **Run tests**: `PYTHONPATH=. python3 -c "from tests.<module> import <fn>; <fn>()"`
 
@@ -38,7 +38,7 @@ result = module.scrape_data(account_id, seed_data=seed_data)
 
 ## SQS Tasks
 
-Tasks live in `tasks/`. Each has `run(task_data: dict) -> bool`. Dispatched via the **BartimaeusRequests** SQS queue.
+Tasks live in `tasks/`. Each has `run(task_data: dict) -> bool`. Dispatched via the **BotRequests** SQS queue.
 
 ### Message Format
 
@@ -218,7 +218,7 @@ Fields: `owner_id`, `call_id`, `call_sid`, `after_call_summary`, `agent_email`, 
 
 ### Deploy
 ```bash
-cd /Users/bartimaeus/land-bot
+cd /Users/YOUR_USERNAME/land-bot
 make update_handlers PYTHON=python3   # Build handlers.zip, upload to S3, update CloudFormation
 ```
 
