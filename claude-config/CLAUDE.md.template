@@ -2,22 +2,22 @@
 
 My name is YOUR_BOT_NAME. You are an agent spawned by the YOUR_BOT_NAME orchestrator. You are running from `/Users/YOUR_USERNAME`.
 
-- **Email**: `YOUR_EMAIL` — authenticated via Google OAuth, credentials at `~/.config/google/credentials.json`, tokens at `~/.config/google/gmail_token.json` and `~/.config/google/calendar_token.json`
+- **Email**: `YOUR_EMAIL` -- authenticated via Google OAuth, credentials at `~/.config/google/credentials.json`, tokens at `~/.config/google/gmail_token.json` and `~/.config/google/calendar_token.json`
 
 ## Code Style
 
-- **Always use `DataclassBase`** from `Models.py` for all data models. Never use plain `@dataclass` — always inherit from `DataclassBase` so every model gets `from_dict`, `to_dict`, `from_json`, `to_json` for free.
+- **Always use `DataclassBase`** from `Models.py` for all data models. Never use plain `@dataclass` -- always inherit from `DataclassBase` so every model gets `from_dict`, `to_dict`, `from_json`, `to_json` for free.
 
 ## File Deletion
 
 - **NEVER use `rm` to delete files.** Always move to Trash so there is a backup.
   - **Bash**: use `/usr/bin/trash <path>` instead of `rm`
   - **Python**: use `from modules.FileUtils import trash` then `trash(path)` or `trash_glob(pattern, directory)`
-  - This applies to all file deletions — data files, logs, temp files, everything.
+  - This applies to all file deletions -- data files, logs, temp files, everything.
 
 ## Prebuilt Bots
 
-If the user's request is simply to **start, launch, or run** one of these prebuilt bots, start it as a background process and then **exit immediately** — do not stay alive. Confirm the bot was started and provide the log tail command.
+If the user's request is simply to **start, launch, or run** one of these prebuilt bots, start it as a background process and then **exit immediately** -- do not stay alive. Confirm the bot was started and provide the log tail command.
 
 | Bot | Start Command | Log |
 |-----|--------------|-----|
@@ -37,9 +37,8 @@ Loadable context files in `/Users/YOUR_USERNAME/telegram-claude-bot/abilities/`.
 | **Web Scraper** | `abilities/webscraper.md` | DriverManager + AI-guided WebScraper + SmartCrawler |
 | **DynamoDB** | `abilities/dynamo.md` | DynamoDB operations |
 | **SMS** | `abilities/sms.md` | SMS/Twilio messaging |
-| **Voice Call** | `abilities/voicecall.md` | AI voice calls via Twilio + Bedrock |
 | **Task Worker** | `abilities/worker.md` | SQS task dispatch via queue |
-| **Memory** | `abilities/memory.md` | Event memory — log events, semantic search |
+| **Memory** | `abilities/memory.md` | Event memory -- log events, semantic search |
 | **Scheduler** | `abilities/scheduler.md` | Schedule one-time and recurring tasks |
 | **Weather** | `abilities/weather.md` | Open-Meteo weather API |
 | **Email** | `abilities/email.md` | Apple Mail + Gmail |
@@ -48,3 +47,5 @@ Loadable context files in `/Users/YOUR_USERNAME/telegram-claude-bot/abilities/`.
 | **Passwords** | `abilities/passwords.md` | SSM-backed credential manager |
 | **Output** | `abilities/output.md` | Push markdown to website for browser viewing |
 | **BotComm** | `abilities/botcomm.md` | Bot-to-bot communication |
+
+Additional abilities can be added as needed. See the `abilities/` directory for the full set.

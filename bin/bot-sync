@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""bot-sync — Backup & sync YOUR_BOT_NAME agent config to S3 + SSM.
+"""YOUR_BOT_NAME-sync — Backup & sync YOUR_BOT_NAME agent config to S3 + SSM.
 
 Usage:
-    bot-sync init           Create S3 bucket, enable versioning, first full push + cred backup
-    bot-sync push           Upload locally-changed files to S3
-    bot-sync pull           Download remotely-changed files from S3
-    bot-sync status         Show what's changed locally vs remotely
-    bot-sync backup-creds   Store all credentials in SSM
-    bot-sync restore-creds  Restore credentials from SSM to local files
+    YOUR_BOT_NAME-sync init           Create S3 bucket, enable versioning, first full push + cred backup
+    YOUR_BOT_NAME-sync push           Upload locally-changed files to S3
+    YOUR_BOT_NAME-sync pull           Download remotely-changed files from S3
+    YOUR_BOT_NAME-sync status         Show what's changed locally vs remotely
+    YOUR_BOT_NAME-sync backup-creds   Store all credentials in SSM
+    YOUR_BOT_NAME-sync restore-creds  Restore credentials from SSM to local files
 """
 
 import hashlib
@@ -29,7 +29,7 @@ REGION = "us-east-1"
 SSM_PREFIX = "/YOUR_BOT_NAME/sync/"
 HOME = Path.home()
 HOSTNAME = platform.node()
-STATE_DIR = HOME / ".bot-sync"
+STATE_DIR = HOME / ".YOUR_BOT_NAME-sync"
 STATE_FILE = STATE_DIR / f"state-{HOSTNAME}.json"
 
 # ── File manifest: (s3_prefix, local_path, is_glob) ──────────────────────────
@@ -50,7 +50,7 @@ def _expand_sync_files():
         files.append(("project-claude-md/CLAUDE.md", local))
 
     # Memory files
-    memory_dir = HOME / ".claude" / "projects" / "-Users-YOUR_USERNAME" / "memory"
+    memory_dir = HOME / ".claude" / "projects" / "-Users-YOUR_BOT_NAME" / "memory"
     if memory_dir.exists():
         for f in sorted(memory_dir.iterdir()):
             if f.is_file() and f.suffix in (".md", ".json"):
@@ -105,16 +105,16 @@ CREDENTIAL_MAP = [
 
 # Repos to clone on bootstrap (name, org, branch)
 REPOS = [
-    ("land-bot",              "YOUR_GITHUB_ORG", "master"),
-    ("telegram-claude-bot",   "YOUR_GITHUB_ORG", "master"),
-    ("agent-dashboard",       "YOUR_GITHUB_ORG", "master"),
-    ("YOUR_BOT_NAME-mobile",     "YOUR_GITHUB_ORG", "main"),
-    ("stocks",                "YOUR_GITHUB_ORG", "master"),
-    ("task-worker",           "YOUR_GITHUB_ORG", "master"),
-    ("aceable-agent",         "YOUR_GITHUB_ORG", "master"),
-    ("memory-system",         "YOUR_GITHUB_ORG", "master"),
-    ("smart-scraper",         "YOUR_GITHUB_ORG", "main"),
-    ("land-sales-portal",     "YOUR_GITHUB_ORG", "master"),
+    ("land-bot",              "HJK6", "master"),
+    ("telegram-claude-bot",   "HJK6", "master"),
+    ("agent-dashboard",       "HJK6", "master"),
+    ("YOUR_BOT_NAME-mobile",     "HJK6", "main"),
+    ("stocks",                "HJK6", "master"),
+    ("task-worker",           "HJK6", "master"),
+    ("aceable-agent",         "HJK6", "master"),
+    ("memory-system",         "HJK6", "master"),
+    ("smart-scraper",         "HJK6", "main"),
+    ("land-sales-portal",     "HJK6", "master"),
 ]
 
 BREW_PACKAGES = ["gh", "tmux", "jq", "trash"]
@@ -441,7 +441,7 @@ def _s3_key_to_local_path(s3_key):
     mapping = {
         "claude":            HOME / ".claude",
         "project-claude-md": HOME,
-        "memory":            HOME / ".claude" / "projects" / "-Users-YOUR_USERNAME" / "memory",
+        "memory":            HOME / ".claude" / "projects" / "-Users-YOUR_BOT_NAME" / "memory",
         "abilities":         HOME / "telegram-claude-bot" / "abilities",
         "bin":               HOME / "bin",
         "schedule-wrappers": HOME / ".schedule" / "wrappers",

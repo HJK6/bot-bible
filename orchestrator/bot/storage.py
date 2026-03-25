@@ -21,7 +21,7 @@ MESSAGES_TABLE = "BotCommMessages"
 
 
 def _convert_floats(item):
-    """Recursively convert float -> Decimal for DynamoDB."""
+    """Recursively convert float → Decimal for DynamoDB."""
     if isinstance(item, dict):
         return {k: _convert_floats(v) for k, v in item.items()}
     elif isinstance(item, list):
@@ -32,7 +32,7 @@ def _convert_floats(item):
 
 
 def _convert_decimals(item):
-    """Recursively convert Decimal -> int/float from DynamoDB reads."""
+    """Recursively convert Decimal → int/float from DynamoDB reads."""
     if isinstance(item, dict):
         return {k: _convert_decimals(v) for k, v in item.items()}
     elif isinstance(item, list):
@@ -55,7 +55,7 @@ class BotCommStorage:
         self.sessions = self._dynamo.Table(SESSIONS_TABLE)
         self.messages = self._dynamo.Table(MESSAGES_TABLE)
 
-    # -- Bots ---------------------------------------------------------------
+    # ── Bots ───────────────────────────────────────────────────────────
 
     def get_bot(self, bot_id: str) -> Optional[BotCommBot]:
         """Get a bot by ID."""
@@ -85,7 +85,7 @@ class BotCommStorage:
             logger.error(f"Failed to scan bots: {e}")
             return []
 
-    # -- Sessions -----------------------------------------------------------
+    # ── Sessions ───────────────────────────────────────────────────────
 
     def get_active_session(self, bot_id: str) -> Optional[BotCommSession]:
         """Get the most recent active session for a bot."""
@@ -175,7 +175,7 @@ class BotCommStorage:
         except Exception as e:
             logger.error(f"Failed to close session: {e}")
 
-    # -- Messages -----------------------------------------------------------
+    # ── Messages ───────────────────────────────────────────────────────
 
     def put_message(self, message: BotCommMessage):
         """Store a message."""

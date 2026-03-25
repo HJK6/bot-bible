@@ -3,7 +3,6 @@
 import logging
 import os
 import subprocess
-import tempfile
 import time
 import re
 import json
@@ -16,7 +15,8 @@ from .storage import SmsStorage
 logger = logging.getLogger("orchestrator.sms.expenses")
 
 CLAUDE_CMD = "/Users/YOUR_USERNAME/.local/bin/claude"
-TMUX_CMD = "/opt/homebrew/bin/tmux"
+# Clean env to avoid nested Claude Code session detection
+_CLEAN_ENV = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
 
 
 def _ulid() -> str:
@@ -76,8 +76,8 @@ class ExpenseTracker:
             return {}
 
         # Track how much each person paid and how much they owe
-        paid = defaultdict(float)     # phone -> total paid
-        owes = defaultdict(float)     # phone -> total owed
+        paid = defaultdict(float)     # phone → total paid
+        owes = defaultdict(float)     # phone → total owed
 
         for exp in expenses:
             paid[exp.payer_phone] += exp.amount
@@ -249,23 +249,12 @@ Rules:
 - If the message is NOT an expense, respond: {{"is_expense": false}}"""
 
         try:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, prefix='claude_exp_') as pf:
-                pf.write(prompt)
-                prompt_file = pf.name
-
-            out_file = prompt_file + '.out'
-            session_name = f"claude_exp_{os.getpid()}_{int(time.time()*1000)}"
-
-            cmd = f'cat "{prompt_file}" | {CLAUDE_CMD} -p --model haiku > "{out_file}" 2>&1; {TMUX_CMD} wait-for -S {session_name}'
-            subprocess.run([TMUX_CMD, "new-session", "-d", "-s", session_name, cmd], timeout=5)
-            subprocess.run([TMUX_CMD, "wait-for", session_name], timeout=30)
-
-            response_text = ""
-            if os.path.exists(out_file):
-                with open(out_file) as f:
-                    response_text = f.read().strip()
-                os.unlink(out_file)
-            os.unlink(prompt_file)
+            result = subprocess.run(
+                [CLAUDE_CMD, "-p", "--model", "haiku"],
+                input=prompt, capture_output=True, text=True,
+                timeout=30, env=_CLEAN_ENV,
+            )
+            response_text = result.stdout.strip()
             if not response_text:
                 return None
 

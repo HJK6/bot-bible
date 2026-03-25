@@ -9,7 +9,7 @@ sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 from modules.Models import DataclassBase
 
 
-# -- Scopes ----------------------------------------------------------------
+# ── Scopes ────────────────────────────────────────────────────────────
 
 class BotScope:
     """Permission scopes for friend bots."""
@@ -18,12 +18,12 @@ class BotScope:
     KNOWLEDGE = "knowledge"    # Can query capabilities and knowledge
 
 
-# -- Bot Registry ----------------------------------------------------------
+# ── Bot Registry ──────────────────────────────────────────────────────
 
 @dataclass
 class BotCommBot(DataclassBase):
     """BotCommBots table. PK: bot_id.
-    Registry of known friend bots that can communicate with YOUR_BOT_NAME."""
+    Registry of known friend bots that can communicate with Bartimaeus."""
 
     bot_id: str = ""              # Unique identifier (e.g. "aria-bot")
     name: str = ""                # Display name
@@ -39,7 +39,7 @@ class BotCommBot(DataclassBase):
     updated_at: int = 0           # Epoch ms
 
 
-# -- Sessions --------------------------------------------------------------
+# ── Sessions ──────────────────────────────────────────────────────────
 
 @dataclass
 class BotCommSession(DataclassBase):
@@ -56,7 +56,7 @@ class BotCommSession(DataclassBase):
     status: str = "active"        # active | compacted | closed
 
 
-# -- Messages --------------------------------------------------------------
+# ── Messages ──────────────────────────────────────────────────────────
 
 @dataclass
 class BotCommMessage(DataclassBase):

@@ -1,11 +1,11 @@
 #!/bin/bash
-# bot-bootstrap — Restore YOUR_BOT_NAME agent on a fresh Mac from S3 + SSM + GitHub
+# YOUR_BOT_NAME-bootstrap — Restore YOUR_BOT_NAME agent on a fresh Mac from S3 + SSM + GitHub
 #
 # Prerequisites: AWS CLI configured, Python 3.13+, git
 #
 # Usage:
-#   aws s3 cp s3://YOUR_BOT_NAME-sync/bin/bot-bootstrap /tmp/bot-bootstrap
-#   chmod +x /tmp/bot-bootstrap && /tmp/bot-bootstrap
+#   aws s3 cp s3://YOUR_BOT_NAME-sync/bin/YOUR_BOT_NAME-bootstrap /tmp/YOUR_BOT_NAME-bootstrap
+#   chmod +x /tmp/YOUR_BOT_NAME-bootstrap && /tmp/YOUR_BOT_NAME-bootstrap
 
 set -euo pipefail
 
@@ -69,11 +69,11 @@ header "Phase 2: Creating directory structure"
 
 dirs=(
     "$HOME_DIR/bin"
-    "$HOME_DIR/.claude/projects/-Users-YOUR_USERNAME/memory"
+    "$HOME_DIR/.claude/projects/-Users-YOUR_BOT_NAME/memory"
     "$HOME_DIR/.config/google"
     "$HOME_DIR/.config/gh"
     "$HOME_DIR/.ssh"
-    "$HOME_DIR/.bot-sync"
+    "$HOME_DIR/.YOUR_BOT_NAME-sync"
     "$HOME_DIR/.venvs"
     "$HOME_DIR/.schedule/wrappers"
 )
@@ -118,13 +118,13 @@ ssh-add "$HOME_DIR/.ssh/id_ed25519" 2>/dev/null && log "SSH key added to agent" 
 header "Phase 4: Pulling config files from S3"
 
 # Get manifest first (has source machine's home_dir for path rewriting)
-aws s3 cp "s3://$BUCKET/manifest.json" "$HOME_DIR/.bot-sync/manifest.json" --region "$REGION" --quiet
+aws s3 cp "s3://$BUCKET/manifest.json" "$HOME_DIR/.YOUR_BOT_NAME-sync/manifest.json" --region "$REGION" --quiet
 log "Downloaded manifest.json"
 
 # Determine source home_dir for path rewriting
 SRC_HOME=$(python3 -c "
 import json, platform
-m = json.load(open('$HOME_DIR/.bot-sync/manifest.json'))
+m = json.load(open('$HOME_DIR/.YOUR_BOT_NAME-sync/manifest.json'))
 hostname = platform.node()
 for machine, info in m.get('machines', {}).items():
     if machine != hostname:
@@ -136,7 +136,7 @@ for machine, info in m.get('machines', {}).items():
 declare -A PREFIX_MAP=(
     ["claude/"]="$HOME_DIR/.claude/"
     ["project-claude-md/"]="$HOME_DIR/"
-    ["memory/"]="$HOME_DIR/.claude/projects/-Users-YOUR_USERNAME/memory/"
+    ["memory/"]="$HOME_DIR/.claude/projects/-Users-YOUR_BOT_NAME/memory/"
     ["abilities/"]="$HOME_DIR/telegram-claude-bot/abilities/"
     ["bin/"]="$HOME_DIR/bin/"
     ["schedule-wrappers/"]="$HOME_DIR/.schedule/wrappers/"
@@ -151,7 +151,7 @@ for prefix in "${!PREFIX_MAP[@]}"; do
 done
 
 # Also grab requirements.txt
-aws s3 cp "s3://$BUCKET/requirements.txt" "$HOME_DIR/.bot-sync/requirements.txt" --region "$REGION" --quiet 2>/dev/null || true
+aws s3 cp "s3://$BUCKET/requirements.txt" "$HOME_DIR/.YOUR_BOT_NAME-sync/requirements.txt" --region "$REGION" --quiet 2>/dev/null || true
 
 # Rewrite paths if home dir differs
 if [ -n "$SRC_HOME" ] && [ "$SRC_HOME" != "$HOME_DIR" ]; then
@@ -171,7 +171,7 @@ if [ -n "$SRC_HOME" ] && [ "$SRC_HOME" != "$HOME_DIR" ]; then
         [ -f "$f" ] && path_files+=("$f")
     done
     # Also rewrite memory files that might reference paths
-    for f in "$HOME_DIR"/.claude/projects/-Users-YOUR_USERNAME/memory/*.md; do
+    for f in "$HOME_DIR"/.claude/projects/-Users-YOUR_BOT_NAME/memory/*.md; do
         [ -f "$f" ] && path_files+=("$f")
     done
 
@@ -194,7 +194,7 @@ header "Phase 5: Cloning repositories"
 # Read repos from manifest
 repos=$($PYTHON -c "
 import json
-m = json.load(open('$HOME_DIR/.bot-sync/manifest.json'))
+m = json.load(open('$HOME_DIR/.YOUR_BOT_NAME-sync/manifest.json'))
 for r in m.get('repos', []):
     print(f\"{r['name']} {r['org']} {r['branch']}\")
 ")
@@ -268,7 +268,7 @@ else
 fi
 
 # Install packages
-REQ_FILE="$HOME_DIR/.bot-sync/requirements.txt"
+REQ_FILE="$HOME_DIR/.YOUR_BOT_NAME-sync/requirements.txt"
 if [ -f "$REQ_FILE" ]; then
     log "Installing packages from requirements.txt..."
     "$VENV_DIR/bin/pip" install --upgrade pip -q
@@ -285,7 +285,7 @@ header "Phase 8: Installing Homebrew packages"
 if command -v brew &>/dev/null; then
     brew_pkgs=$($PYTHON -c "
 import json
-m = json.load(open('$HOME_DIR/.bot-sync/manifest.json'))
+m = json.load(open('$HOME_DIR/.YOUR_BOT_NAME-sync/manifest.json'))
 for p in m.get('brew_packages', []):
     print(p)
 ")
@@ -333,9 +333,9 @@ header "Phase 10: Registering daily sync"
 
 SCHEDULE="$HOME_DIR/bin/schedule"
 if [ -x "$SCHEDULE" ]; then
-    "$SCHEDULE" recurring "04:00 daily" "$VENV_DIR/bin/python $HOME_DIR/bin/bot-sync push" --tag bot-sync 2>/dev/null && \
+    "$SCHEDULE" recurring "04:00 daily" "$VENV_DIR/bin/python $HOME_DIR/bin/YOUR_BOT_NAME-sync push" --tag YOUR_BOT_NAME-sync 2>/dev/null && \
         log "Daily sync registered (04:00 push)" || \
-        warn "Could not register daily sync — run manually: schedule recurring '04:00 daily' 'bot-sync push' --tag bot-sync"
+        warn "Could not register daily sync — run manually: schedule recurring '04:00 daily' 'YOUR_BOT_NAME-sync push' --tag YOUR_BOT_NAME-sync"
 else
     warn "schedule not found — register daily sync manually after setup"
 fi
@@ -344,9 +344,9 @@ fi
 
 header "Initializing sync state"
 
-"$VENV_DIR/bin/python" "$HOME_DIR/bin/bot-sync" push 2>/dev/null && \
+"$VENV_DIR/bin/python" "$HOME_DIR/bin/YOUR_BOT_NAME-sync" push 2>/dev/null && \
     log "Initial sync state recorded" || \
-    warn "Could not initialize sync state — run 'bot-sync push' manually"
+    warn "Could not initialize sync state — run 'YOUR_BOT_NAME-sync push' manually"
 
 # ── Done ─────────────────────────────────────────────────────────────────────
 
@@ -355,10 +355,10 @@ echo ""
 echo "  Machine:    $(hostname)"
 echo "  Home:       $HOME_DIR"
 echo "  Python:     $VENV_DIR/bin/python"
-echo "  Sync state: $HOME_DIR/.bot-sync/"
+echo "  Sync state: $HOME_DIR/.YOUR_BOT_NAME-sync/"
 echo ""
 echo "  Next steps:"
 echo "    1. source ~/.zshrc"
-echo "    2. bot-sync status"
+echo "    2. YOUR_BOT_NAME-sync status"
 echo "    3. Verify repos and credentials"
 echo ""

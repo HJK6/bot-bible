@@ -30,14 +30,48 @@ def ttl_days(days):
     return int(time.time()) + (days * 86400)
 
 def get_agent_id():
-    """Deterministic agent_id based on tmux session name (stable across all processes in the session)."""
+    """Deterministic agent_id based on tmux session name (stable across all processes in the session).
+
+    Uses a tmux environment variable (AGENT_ID) to survive session renames.
+    Without this, sync_tmux_names renaming a session would change the hash
+    and cause ensure_registered to create a duplicate entry.
+    """
     tmux_info = _get_tmux_info()
     if tmux_info:
+        # Check for a pinned agent_id (survives tmux session renames)
+        stored = _get_tmux_env("AGENT_ID")
+        if stored:
+            return stored
         session_name = tmux_info["tmux_session"]
         return hashlib.sha256(f"claude-code::tmux-{session_name}".encode()).hexdigest()[:36]
     # Fallback for non-tmux (shouldn't reach here due to guards)
     ppid = os.getppid()
     return hashlib.sha256(f"claude-code::pid-{ppid}".encode()).hexdigest()[:36]
+
+
+def _get_tmux_env(var):
+    """Read a tmux user environment variable from the current session."""
+    try:
+        result = subprocess.run(
+            ["/opt/homebrew/bin/tmux", "show-environment", var],
+            capture_output=True, text=True, timeout=2,
+        )
+        if result.returncode == 0 and "=" in result.stdout:
+            return result.stdout.strip().split("=", 1)[1]
+    except Exception:
+        pass
+    return None
+
+
+def _set_tmux_env(var, value):
+    """Pin a tmux user environment variable to the current session."""
+    try:
+        subprocess.run(
+            ["/opt/homebrew/bin/tmux", "set-environment", var, value],
+            capture_output=True, text=True, timeout=2,
+        )
+    except Exception:
+        pass
 
 def get_ppid():
     return os.getppid()
@@ -117,6 +151,9 @@ def ensure_registered():
                 ExpressionAttributeValues=values,
                 ExpressionAttributeNames=names,
             )
+            # Ensure pinned for sessions that predate the fix
+            if tmux and not _get_tmux_env("AGENT_ID"):
+                _set_tmux_env("AGENT_ID", agent_id)
             return agent_id
         # If stale/completed but process is still alive, re-register as running
         if existing and existing.get("status") in ("stale", "completed"):
@@ -135,13 +172,26 @@ def ensure_registered():
                 ExpressionAttributeValues=values,
                 ExpressionAttributeNames=names,
             )
+            if tmux and not _get_tmux_env("AGENT_ID"):
+                _set_tmux_env("AGENT_ID", agent_id)
             return agent_id
     except Exception:
         pass
 
-    # Build title from tmux window name or PID
+    # Build title from tmux window name or session name
     if tmux:
-        title = f"tmux:{tmux['tmux_session']}:{tmux['tmux_window']}"
+        wname = tmux['tmux_window']
+        sname = tmux['tmux_session']
+        # Prefer window name if it's meaningful (not just shell name or version)
+        if wname and wname not in ('zsh', 'bash', 'fish', sname) and not re.match(r'^\d+[\d.]*$', wname):
+            title = wname
+        else:
+            # Clean up session name: strip tmux- prefix layers, claude-PID-timestamp, convert hyphens to spaces
+            clean = re.sub(r'^(tmux-)+', '', sname)
+            clean = re.sub(r'^claude-\d+(-\d+)?-', '', clean)
+            clean = re.sub(r'-\d+-\d+-\d+$', '', clean)  # strip trailing version-like suffixes
+            clean = clean.replace('-', ' ').strip()
+            title = clean if clean else sname
     else:
         title = f"Claude Code (PID {ppid})"
 
@@ -167,6 +217,9 @@ def ensure_registered():
         record["tmux_window"] = tmux["tmux_window"]
         record["tmux_index"] = tmux["tmux_index"]
     table.put_item(Item=record)
+    # Pin agent_id in tmux env so it survives session renames
+    if tmux:
+        _set_tmux_env("AGENT_ID", agent_id)
     return agent_id
 
 def log_message(message, level="info", **metadata):
@@ -303,7 +356,12 @@ def needs_title():
         if not item:
             return True
         title = item.get("title", "")
-        return title.startswith("tmux:") or title.startswith("Claude Code")
+        if not title or title.startswith("tmux:") or title.startswith("Claude Code"):
+            return True
+        # Also retitle if it's just a version number like "2.1.81"
+        if re.match(r'^\d+[\d.]*$', title):
+            return True
+        return False
     except Exception:
         return False
 

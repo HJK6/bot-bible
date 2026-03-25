@@ -7,7 +7,6 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 import time
 import urllib.request
 from typing import Optional, Callable, Awaitable
@@ -23,7 +22,8 @@ logger = logging.getLogger("orchestrator.sms")
 sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 
 CLAUDE_CMD = "/Users/YOUR_USERNAME/.local/bin/claude"
-TMUX_CMD = "/opt/homebrew/bin/tmux"
+# Clean env to avoid nested Claude Code session detection
+_CLEAN_ENV = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
 
 # Session gap: 4 hours of inactivity = new session
 SESSION_GAP_MS = 4 * 60 * 60 * 1000
@@ -32,11 +32,11 @@ SESSION_GAP_MS = 4 * 60 * 60 * 1000
 COMPACT_THRESHOLD = 20
 COMPACT_KEEP_RECENT = 5
 
-# YOUR_BOT_NAME Twilio number
-TWILIO_NUMBER = "+1XXXXXXXXXX"
+# Bartimaeus Twilio number
+TWILIO_NUMBER = "+16094733678"
 
-# Archon phone
-ARCHON_PHONE = "+1XXXXXXXXXX"
+# Archon phone (Vamshi)
+ARCHON_PHONE = "+18179078815"
 
 
 def _ulid() -> str:
@@ -61,43 +61,17 @@ def _send_sms(to_number: str, body: str) -> bool:
 
 
 def _call_claude(prompt: str, timeout: int = 60) -> Optional[str]:
-    """Call claude -p via tmux to avoid nested Claude Code session errors."""
+    """Call claude -p as a subprocess (no tmux needed)."""
     try:
-        # Write prompt to temp file (avoids shell escaping issues)
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, prefix='claude_prompt_') as pf:
-            pf.write(prompt)
-            prompt_file = pf.name
-
-        out_file = prompt_file + '.out'
-        session_name = f"claude_{os.getpid()}_{int(time.time()*1000)}"
-
-        # Run claude -p in a detached tmux session
-        cmd = f'cat "{prompt_file}" | {CLAUDE_CMD} -p --model haiku > "{out_file}" 2>&1; {TMUX_CMD} wait-for -S {session_name}'
-        subprocess.run(
-            [TMUX_CMD, "new-session", "-d", "-s", session_name, cmd],
-            timeout=5,
+        result = subprocess.run(
+            [CLAUDE_CMD, "-p", "--model", "haiku"],
+            input=prompt, capture_output=True, text=True,
+            timeout=timeout, env=_CLEAN_ENV,
         )
-
-        # Wait for tmux session to signal completion
-        subprocess.run(
-            [TMUX_CMD, "wait-for", session_name],
-            timeout=timeout,
-        )
-
-        # Read output
-        if os.path.exists(out_file):
-            with open(out_file) as f:
-                result = f.read().strip()
-            os.unlink(out_file)
-            os.unlink(prompt_file)
-            return result if result else None
-
-        os.unlink(prompt_file)
-        return None
+        output = result.stdout.strip()
+        return output if output else None
     except subprocess.TimeoutExpired:
         logger.error("Claude call timed out")
-        # Cleanup tmux session
-        subprocess.run([TMUX_CMD, "kill-session", "-t", session_name], capture_output=True)
         return None
     except Exception as e:
         logger.error(f"Claude call failed: {e}")
@@ -135,7 +109,7 @@ class SmsHandler:
         # 1. Look up contact
         contact = self.storage.get_contact(from_phone)
 
-        # 2. No contact or no scopes -> silent (log + notify archon)
+        # 2. No contact or no scopes → silent (log + notify archon)
         if not contact or not contact.scopes:
             name = contact.name if contact else from_phone
             await self._notify(f"SMS from unknown/unscoped {name} ({from_phone}): {body}")
@@ -234,7 +208,7 @@ class SmsHandler:
 
         return None
 
-    # -- Archon Scope ------------------------------------------------------
+    # ── Archon Scope ──────────────────────────────────────────────────
 
     async def _handle_archon(self, contact: SmsContact, session: SmsSession, body: str) -> Optional[str]:
         """Handle messages from archon (full access)."""
@@ -244,7 +218,7 @@ class SmsHandler:
         if body.strip().startswith("/"):
             return self._handle_admin_command(body.strip(), contact)
 
-        # Expense queries FIRST (before expense logging to avoid "balance $50" -> expense)
+        # Expense queries FIRST (before expense logging to avoid "balance $50" → expense)
         if any(w in body_lower for w in ["balance", "owe", "summary", "expenses", "settle", "totals"]):
             if contact.expense_events:
                 event_id = contact.expense_events[0]
@@ -358,7 +332,7 @@ class SmsHandler:
 
         return f"Unknown command: {cmd}. Try /help"
 
-    # -- Expense Tracker Scope ---------------------------------------------
+    # ── Expense Tracker Scope ─────────────────────────────────────────
 
     async def _handle_expense_tracker(self, contact: SmsContact, session: SmsSession, body: str) -> Optional[str]:
         """Handle messages from expense_tracker scoped contacts.
@@ -390,7 +364,7 @@ class SmsHandler:
             if first:
                 name_to_phone[first] = c.phone
 
-        prompt = f"""You are YOUR_BOT_NAME, a bot collecting group expenses via SMS from a bachelor party trip to Big Sky, Montana (Wed Feb 26 - Tue Mar 3, 2026). The trip days: Wed=Feb 25, Thu=Feb 26, Fri=Feb 27, Sat=Feb 28, Sun=Mar 1, Mon=Mar 2, Tue=Mar 3.
+        prompt = f"""You are Bartimaeus, a bot collecting group expenses via SMS from a bachelor party trip to Big Sky, Montana (Wed Feb 26 - Tue Mar 3, 2026). The trip days: Wed=Feb 25, Thu=Feb 26, Fri=Feb 27, Sat=Feb 28, Sun=Mar 1, Mon=Mar 2, Tue=Mar 3.
 
 You are talking to: {contact.name}
 All participants: {', '.join(participant_names)}
@@ -476,7 +450,7 @@ Rules:
             body, contact.phone, contact.name, event_id, participants,
         )
 
-    # -- Altum Analytics Scope ---------------------------------------------
+    # ── Altum Analytics Scope ─────────────────────────────────────────
 
     async def _handle_altum_analytics(self, contact: SmsContact, session: SmsSession, body: str) -> Optional[str]:
         """Handle messages from altum_analytics scoped contacts — CRM reporting."""
@@ -503,7 +477,7 @@ Rules:
         except Exception as e:
             logger.warning(f"Failed to look up agent email for {contact.name}: {e}")
         if not contact_email:
-            contact_email = "user@example.com"  # fallback
+            contact_email = "sofianalire@gmail.com"  # fallback
 
         return await handle_altum_analytics(
             contact_name=contact.name,
@@ -512,13 +486,13 @@ Rules:
             conversation_context=conversation_context,
         )
 
-    # -- Chat Scope --------------------------------------------------------
+    # ── Chat Scope ────────────────────────────────────────────────────
 
     async def _handle_chat(self, contact: SmsContact, session: SmsSession, body: str) -> Optional[str]:
         """Handle messages from chat scoped contacts — simple AI conversation."""
         return await self._ai_reply(contact, session, body, scope=Scope.CHAT)
 
-    # -- AI Reply ----------------------------------------------------------
+    # ── AI Reply ──────────────────────────────────────────────────────
 
     async def _ai_reply(self, contact: SmsContact, session: SmsSession, body: str, scope: str) -> Optional[str]:
         """Generate an AI reply using Ollama, with session context. Non-blocking."""
@@ -541,7 +515,7 @@ Rules:
             Scope.CHAT: "You can have casual conversation. Keep it friendly and brief.",
         }
 
-        prompt = f"""You are YOUR_BOT_NAME, a helpful AI assistant communicating via SMS. Keep replies SHORT (under 160 chars when possible, max 320 chars). Be concise but friendly.
+        prompt = f"""You are Bartimaeus, a helpful AI assistant communicating via SMS. Keep replies SHORT (under 160 chars when possible, max 320 chars). Be concise but friendly.
 
 Contact: {contact.name}
 Scope: {scope}
@@ -569,7 +543,7 @@ Reply concisely:"""
 
         return reply
 
-    # -- Session Compaction ------------------------------------------------
+    # ── Session Compaction ────────────────────────────────────────────
 
     async def _compact_session(self, session: SmsSession):
         """Compact older messages in a session into a summary. Non-blocking."""
@@ -610,7 +584,7 @@ Summary:"""
 
             logger.info(f"Compacted session {session.session_id}: {len(to_summarize)} messages -> summary")
 
-    # -- Notification Helper -----------------------------------------------
+    # ── Notification Helper ───────────────────────────────────────────
 
     async def _notify(self, message: str, sender: str = "SMS"):
         """Send notification to mobile app."""

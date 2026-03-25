@@ -45,6 +45,9 @@
       }
     ]
   },
+  "allowedTools": [
+    "mcp__ghost-os__*"
+  ],
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
   },

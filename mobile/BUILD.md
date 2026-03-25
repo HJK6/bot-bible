@@ -1,4 +1,4 @@
-# YOUR_BOT_NAME Mobile — Build Process
+# YOUR_BOT_NAME Mobile -- Build Process
 
 ## Quick Reference
 
@@ -31,12 +31,12 @@ npm run deploy:web
 # or manually:
 npx expo export --platform web
 aws s3 sync dist/ s3://agent-dashboard-frontend/ --delete
-aws cloudfront create-invalidation --distribution-id E2BMAFSRPEI2SX --paths "/*"
+aws cloudfront create-invalidation --distribution-id YOUR_CF_DIST_ID --paths "/*"
 ```
 
-### iOS — IMPORTANT: Always use Release mode
+### iOS -- IMPORTANT: Always use Release mode
 
-**Debug mode** (default `expo run:ios`) does NOT embed the JS bundle — it requires Metro bundler running at localhost:8081. This causes "No script URL provided" errors when the app launches without Metro.
+**Debug mode** (default `expo run:ios`) does NOT embed the JS bundle -- it requires Metro bundler running at localhost:8081. This causes "No script URL provided" errors when the app launches without Metro.
 
 **Release mode** embeds the JS bundle in the .app so it works standalone:
 ```bash
@@ -51,7 +51,7 @@ npm run ios:device
 
 Only use Debug mode during active development when Metro is running:
 ```bash
-npx expo run:ios   # Debug — requires Metro running
+npx expo run:ios   # Debug -- requires Metro running
 ```
 
 ### Dev Server (Web + Expo Go)
@@ -61,7 +61,7 @@ npx expo start --web
 
 ## Critical: Kill Other Metro Servers Before Building
 
-**ALWAYS kill other Expo/Metro processes before building.** Multiple Expo apps share port 8081 by default. If another app's Metro bundler is running (e.g., Altum Realty on port 8081), the YOUR_BOT_NAME build can load the WRONG app's JS bundle — resulting in the correct native shell but completely wrong app content.
+**ALWAYS kill other Expo/Metro processes before building.** Multiple Expo apps share port 8081 by default. If another app's Metro bundler is running, the build can load the WRONG app's JS bundle.
 
 ```bash
 # Before any build, kill stray Metro processes:
@@ -70,7 +70,17 @@ pkill -f metro; pkill -f "expo start"
 lsof -i :8081
 ```
 
-This happened Feb 2026: Altum Realty's Metro was on 8081, YOUR_BOT_NAME builds grabbed Altum's JS code. The app showed the YOUR_BOT_NAME splash screen then loaded Altum Realty. Fix was applied in `AppDelegate.swift` — Release mode now ignores deep link bundle URL overrides and always uses the embedded `main.jsbundle`.
+## OTA Updates (EAS Update)
+
+The app supports over-the-air JS updates via `expo-updates`:
+- Channel: `production`
+- Check policy: `ON_LOAD` (checks on every app launch)
+- Fallback timeout: 2 seconds
+
+To push a JS-only update without rebuilding native:
+```bash
+npx eas update --branch production --message "description of change"
+```
 
 ## Common Issues
 
@@ -78,7 +88,7 @@ This happened Feb 2026: Altum Realty's Metro was on 8081, YOUR_BOT_NAME builds g
 The app was built in **Debug mode** without Metro running. Rebuild with `--configuration Release` to embed the JS bundle. See iOS section above.
 
 ### "Cannot find native module ExpoClipboard / ExponentAI"
-**Not a real error.** Harmless Expo runtime warnings — Expo probes for optional native modules at startup and logs warnings for uninstalled ones. They do not affect the app.
+**Not a real error.** Harmless Expo runtime warnings -- Expo probes for optional native modules at startup and logs warnings for uninstalled ones. They do not affect the app.
 
 ### TypeScript Route Errors
 The app uses `typedRoutes: true` in app.json. Files outside `app/` (like `reference/`) need `as any` casts on `router.push()` calls since those paths aren't registered routes.
@@ -96,34 +106,85 @@ Simple JS-only changes don't need a native rebuild.
 
 ```
 YOUR_BOT_NAME-mobile/
-├── app/                    # Expo Router screens (file-based routing)
-│   ├── _layout.tsx         # Root layout (auth, theme, fonts)
-│   ├── (tabs)/             # Tab navigator
-│   │   ├── index.tsx       # Agents list
-│   │   ├── updates.tsx     # System updates feed
-│   │   └── settings.tsx    # Settings
-│   ├── agent/[id].tsx      # Agent detail (Info/Chat/Logs)
-│   └── mocks/              # UX iteration screens (v1/v2/v3)
+├── app/                        # Expo Router screens (file-based routing)
+│   ├── _layout.tsx             # Root layout (auth, theme, fonts, biometric lock)
+│   ├── (tabs)/                 # Tab navigator
+│   │   ├── _layout.tsx         # Tab bar config
+│   │   ├── index.tsx           # Agents list
+│   │   ├── chats.tsx           # Chat conversations
+│   │   ├── projects.tsx        # Project tracking
+│   │   ├── updates.tsx         # System updates feed
+│   │   └── settings.tsx        # Settings (biometrics, push notifications)
+│   ├── agent/[id].tsx          # Agent detail (Info/Chat/Logs)
+│   ├── bot/[id].tsx            # Bot detail view
+│   ├── memory.tsx              # Memory event viewer
+│   ├── output/
+│   │   ├── index.tsx           # Output list
+│   │   └── [slug].tsx          # Output detail (markdown render)
+│   ├── project/[id].tsx        # Project detail
+│   ├── public/[id].tsx         # Public shared view
+│   ├── stocks/
+│   │   ├── _layout.tsx         # Stocks tab layout
+│   │   ├── all.tsx             # All stocks overview
+│   │   ├── trades.tsx          # Trade history
+│   │   └── volume-shocks.tsx   # Volume shock alerts
+│   └── mocks/                  # UX iteration screens
 ├── src/
-│   ├── components/         # Reusable UI (ChatBubble, StatusBadge, etc.)
-│   ├── hooks/              # Data hooks (useAgents, useAgentChat, etc.)
-│   ├── services/           # API clients (Lambda, upload, auth)
-│   └── types/              # TypeScript interfaces
-├── reference/              # UX reference mocks (not production screens)
-├── ios/                    # Native iOS project (auto-generated)
-├── android/                # Native Android project (auto-generated)
-├── app.json                # Expo config
-├── eas.json                # EAS Build config
-└── .env                    # EXPO_PUBLIC_AWS_* env vars
+│   ├── components/             # Reusable UI
+│   │   ├── AgentListItem.tsx   # Agent row in list
+│   │   ├── BotListItem.tsx     # Bot row in list
+│   │   ├── ChatBubble.tsx      # Chat message bubble
+│   │   ├── ChatInput.tsx       # Message input with image picker
+│   │   ├── ScheduledJobItem.tsx # Scheduled job row
+│   │   ├── StatusBadge.tsx     # Agent status indicator
+│   │   ├── TypingIndicator.tsx # Typing animation
+│   │   └── UpdateCard.tsx      # System update card
+│   ├── hooks/                  # Data hooks
+│   │   ├── useAgents.ts        # Agent list + polling
+│   │   ├── useAgentChat.ts     # Agent chat messages
+│   │   ├── useAgentLogs.ts     # Agent execution logs
+│   │   ├── useAutoRefresh.ts   # Auto-refresh timer
+│   │   ├── useBiometricLock.ts # Face ID / fingerprint lock
+│   │   ├── useBots.ts          # Bot list
+│   │   ├── useChats.ts         # Chat conversations
+│   │   ├── useCreateCommand.ts # Send command to agent
+│   │   ├── useProjects.ts      # Project data
+│   │   ├── usePushNotifications.ts # Expo push token registration
+│   │   ├── useResponsive.ts    # Responsive layout breakpoints
+│   │   ├── useScheduledJobs.ts # Scheduled job list
+│   │   ├── useUnreadNotifications.ts # Unread badge count
+│   │   ├── useUpdates.ts       # System updates feed
+│   │   └── useUsage.ts         # Usage/billing data
+│   ├── services/               # API clients
+│   │   ├── api.ts              # Base API client
+│   │   ├── auth.ts             # Cognito auth (Amplify v6)
+│   │   ├── lambda.ts           # Lambda invocation (SDK v3)
+│   │   └── upload.ts           # S3 presigned upload
+│   └── types/
+│       └── agent.ts            # TypeScript interfaces
+├── ios/                        # Native iOS project (auto-generated)
+├── android/                    # Native Android project (auto-generated)
+├── app.json                    # Expo config
+├── eas.json                    # EAS Build config
+└── .env                        # EXPO_PUBLIC_AWS_* env vars
 ```
 
 ## Key Types
 
 All defined in `src/types/agent.ts`:
-- `Agent` — agent_id, agent_name, title, status, goal, metrics, etc.
-- `AgentChatMessage` — agent_id, timestamp (number), direction, message, sender
-- `AgentChatMessageOptimistic` — extends AgentChatMessage with optimistic/pending flags
-- `AgentLog` — agent_id, timestamp (number), level, message, metadata
+- `Agent` -- agent_id, agent_name, title, status, goal, metrics, etc.
+- `AgentChatMessage` -- agent_id, timestamp (number), direction, message, sender
+- `AgentChatMessageOptimistic` -- extends AgentChatMessage with optimistic/pending flags
+- `AgentLog` -- agent_id, timestamp (number), level, message, metadata
+
+## Key Features
+
+- **Biometric Lock** -- Face ID / Touch ID via `expo-local-authentication` + `expo-secure-store`
+- **Push Notifications** -- Expo push notifications for agent updates
+- **Image Messages** -- Send images via `expo-image-picker` + S3 presigned upload
+- **OTA Updates** -- JS-only updates via `expo-updates` without App Store rebuild
+- **Responsive Layout** -- Adapts between phone/tablet/web via `useResponsive`
+- **Typing Indicators** -- Real-time agent activity feedback
 
 ## Tech Stack
 - Expo SDK 54, React 19, React Native 0.81

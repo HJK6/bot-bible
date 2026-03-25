@@ -22,7 +22,7 @@ from urllib.parse import parse_qs
 
 import boto3
 
-VOICE_CALLS_TABLE = os.environ.get("VOICE_CALLS_TABLE", "BotVoiceCalls")
+VOICE_CALLS_TABLE = os.environ.get("VOICE_CALLS_TABLE", "BartVoiceCalls")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 dynamo = boto3.resource("dynamodb", region_name=REGION)
@@ -116,7 +116,7 @@ def voiceWebhookHandler(event, context):
 </Response>""")
 
 
-# -- Helpers ---------------------------------------------------------------
+# ── Helpers ────────────────────────────────────────────────────────────
 
 
 def _param(params, key):
@@ -143,7 +143,7 @@ def _resp(code, body):
     return {"statusCode": code, "body": body}
 
 
-# -- DynamoDB conversation storage -----------------------------------------
+# ── DynamoDB conversation storage ──────────────────────────────────────
 
 
 def _init_conversation(call_sid, messages):
@@ -188,7 +188,7 @@ def _save_conversation(call_sid, messages):
         print(f"Error saving conversation: {e}")
 
 
-# -- Bedrock AI ------------------------------------------------------------
+# ── Bedrock AI ─────────────────────────────────────────────────────────
 
 
 def _call_bedrock(messages):

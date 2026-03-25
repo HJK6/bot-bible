@@ -30,7 +30,7 @@ MEDIA_BUCKET = "YOUR_BOT_NAME-chat-media"
 AWS_REGION = "us-east-1"
 
 # SSM path for the shared HMAC secret used to sign outbound messages
-HMAC_SECRET_SSM = "/YOUR_BOT_NAME/botcomm/secret"
+HMAC_SECRET_SSM = "/bartimaeus/botcomm/secret"
 
 _hmac_secret_cache = None
 
@@ -267,7 +267,7 @@ Reply with exactly one word: continue or new"""
         return active
 
     async def _handle_capability_query(self, bot: BotCommBot, session: BotCommSession, query: str):
-        """Respond to a capability query with YOUR_BOT_NAME's capabilities."""
+        """Respond to a capability query with Bartimaeus's capabilities."""
         capabilities = [
             "weather — current conditions and forecasts via Open-Meteo",
             "sms — send/receive SMS via Twilio",
@@ -283,7 +283,7 @@ Reply with exactly one word: continue or new"""
             "notes — Apple Notes read/create/search",
         ]
 
-        response = f"YOUR_BOT_NAME capabilities:\n" + "\n".join(f"- {c}" for c in capabilities)
+        response = f"Bartimaeus capabilities:\n" + "\n".join(f"- {c}" for c in capabilities)
 
         await self.send_message(
             bot_id=bot.bot_id,
@@ -306,8 +306,21 @@ Reply with exactly one word: continue or new"""
             logger.error(f"Bot {bot_id} has no webhook_url configured")
             return False
 
-        # Resolve session for storing outbound
-        session = self._resolve_session(bot, message)
+        # Use existing active session for outbound (don't re-classify — this is a reply)
+        session = self.storage.get_active_session(bot_id)
+        if not session:
+            session = self._resolve_session(bot, message)
+
+        # Fetch outbound API key if one exists (friend bot's inbound key for us)
+        outbound_api_key = ""
+        try:
+            resp = boto3.client("ssm", region_name=AWS_REGION).get_parameter(
+                Name=f"/bartimaeus/botcomm/outbound_keys/{bot_id}",
+                WithDecryption=True,
+            )
+            outbound_api_key = resp["Parameter"]["Value"]
+        except Exception:
+            pass
 
         # Build payload
         payload = {
@@ -319,6 +332,8 @@ Reply with exactly one word: continue or new"""
             "attachments": attachments,
             "timestamp": _now_ms(),
         }
+        if outbound_api_key:
+            payload["api_key"] = outbound_api_key
 
         payload_str = json.dumps(payload, sort_keys=True)
         signature = _sign_payload(payload_str)
@@ -331,7 +346,7 @@ Reply with exactly one word: continue or new"""
                 data=json.dumps(payload).encode(),
                 headers={
                     "Content-Type": "application/json",
-                    "X-YOUR_BOT_NAME-Signature": signature,
+                    "X-Bartimaeus-Signature": signature,
                 },
             )
             resp = urllib.request.urlopen(req, timeout=15)

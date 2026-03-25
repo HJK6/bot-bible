@@ -7,42 +7,43 @@ Everything a new Claude Code instance needs to stand up a bot agent infrastructu
 ## Architecture Overview
 
 ```
-┌─────────────┐    ┌──────────────┐    ┌─────────────────┐
-│  Telegram    │───▶│  Lambda      │───▶│  SQS             │
-│  (User)      │    │  Webhook     │    │  OrchestratorInbox│
-└─────────────┘    └──────────────┘    └────────┬──────────┘
+┌─────────────┐    ┌──────────────┐    ┌──────────────────┐
+│  Telegram    │───>│  Lambda      │───>│  SQS              │
+│  (User)      │    │  Webhook     │    │  OrchestratorInbox │
+└─────────────┘    └──────────────┘    └────────┬───────────┘
                                                 │
 ┌─────────────┐    ┌──────────────┐    ┌────────▼──────────┐
-│  Mobile App  │───▶│  API Gateway │    │   Orchestrator    │
+│  Mobile App  │───>│  API Gateway │    │   Orchestrator    │
 │  (Expo)      │    │  + Cognito   │    │   (Local Daemon)  │
 └─────────────┘    └──────────────┘    └────────┬──────────┘
                                                 │
-                          ┌─────────────────────┼─────────────────────┐
-                          │                     │                     │
-                   ┌──────▼──────┐    ┌────────▼────────┐   ┌───────▼──────┐
-                   │ Claude Code  │    │  Task Worker    │   │  SMS/Bot     │
-                   │ (tmux agent) │    │  (SQS poller)  │   │  Handlers    │
-                   └──────────────┘    └─────────────────┘   └──────────────┘
-                          │
-                   ┌──────▼──────┐
-                   │  Tracker    │──▶ DynamoDB (AgentTracker, AgentLogs, AgentChat)
-                   │  + Hooks    │
-                   └─────────────┘
+                         ┌──────────────────────┼──────────────────────┐
+                         │                      │                      │
+                  ┌──────▼───────┐    ┌────────▼─────────┐   ┌───────▼───────┐
+                  │ Claude Code   │    │  Task Worker     │   │  SMS/Bot/     │
+                  │ (tmux agent)  │    │  (SQS poller)    │   │  Gmail/Voice  │
+                  └──────────────┘    └──────────────────┘   │  Handlers     │
+                         │                                    └───────────────┘
+┌──────────────┐  ┌──────▼───────┐
+│ Summoning    │─>│  Tracker     │──> DynamoDB (AgentTracker, AgentLogs, AgentChat)
+│ Room (Elect) │  │  + Hooks     │
+└──────────────┘  └──────────────┘
 ```
 
 ### Components
 
 | Component | Directory | Description |
 |-----------|-----------|-------------|
-| **Orchestrator** | `orchestrator/` | Local daemon — manages Claude agents in tmux, routes Telegram/SMS/bot messages |
-| **Handlers** | `handlers/` | AWS Lambda functions — webhooks (Telegram, SMS, Bot, Voice), API endpoints |
-| **Modules** | `modules/` | Shared AWS utilities — DynamoDB wrapper, config, models |
+| **Orchestrator** | `orchestrator/` | Local daemon -- manages Claude agents in tmux, routes Telegram/SMS/bot messages |
+| **Handlers** | `handlers/` | AWS Lambda functions -- webhooks (Telegram, SMS, Bot, Voice, Gmail), API endpoints (tracker, media, memory, output, stocks, projects) |
+| **Modules** | `modules/` | Shared AWS utilities -- DynamoDB wrapper, config, models |
 | **Tracker** | `tracker/` | Agent tracking SDK + Claude Code hooks for session lifecycle |
-| **Mobile App** | `mobile/` | Expo (React Native) app — iOS/Android/Web dashboard |
-| **Worker** | `worker/` | SQS task worker — executes repo tasks with auto-fix |
+| **Summoning Room** | `desktop/command-center/` | Electron desktop app -- 4-slot terminal grid with embedded xterm.js + node-pty, backed by Python API server |
+| **Mobile App** | `mobile/` | Expo (React Native) app -- iOS/Android/Web dashboard with agents, bots, chats, projects, stocks, memory, output |
+| **Worker** | `worker/` | SQS task worker -- executes repo tasks with auto-fix |
 | **Infrastructure** | `infrastructure/` | CloudFormation (SAM) templates + deploy scripts |
-| **Bin Scripts** | `bin/` | CLI tools — scheduler, session manager, bootstrap, sync, creds |
-| **Claude Config** | `claude-config/` | Settings, hooks config, tmux config templates |
+| **Bin Scripts** | `bin/` | CLI tools -- scheduler, session manager, bootstrap, sync, creds, cmdcenter |
+| **Claude Config** | `claude-config/` | Settings (hooks, Ghost OS MCP), tmux config templates |
 | **Abilities** | `abilities/` | Loadable context docs for integrations (30+ capabilities) |
 | **Shared** | `shared/` | DataclassBase models, web scraper, smart crawler, RPA |
 
@@ -58,22 +59,29 @@ Everything a new Claude Code instance needs to stand up a bot agent infrastructu
 - AWS CLI configured (`aws configure`)
 - Claude Code CLI installed (`npm install -g @anthropic-ai/claude-code`)
 - tmux installed (`brew install tmux`)
+- iTerm2 installed (`brew install --cask iterm2`)
 - Expo CLI (`npm install -g expo-cli`)
 
 ### 0. First-Time Setup (Claude Code should do this automatically)
 
 When a Claude Code instance reads this repo for the first time, it should:
 
-1. **Prompt the user for their bot name** — use this to replace all `YOUR_BOT_NAME` placeholders throughout the codebase (SSM paths, bucket names, identifiers, Soul.md identity, etc.)
-2. **Prompt for macOS username** — replace all `YOUR_USERNAME` placeholders (file paths, memory paths, etc.)
-3. **Prompt for domain** — replace all `YOUR_DOMAIN` placeholders
-4. **Prompt for GitHub org** — replace all `YOUR_GITHUB_ORG` placeholders
-5. **Create the Tmux Sessions desktop shortcut** — build and install `desktop/tmux-sessions/`:
+1. **Prompt the user for their bot name** -- use this to replace all `YOUR_BOT_NAME` placeholders throughout the codebase (SSM paths, bucket names, identifiers, Soul.md identity, etc.)
+2. **Prompt for macOS username** -- replace all `YOUR_USERNAME` placeholders (file paths, memory paths, etc.)
+3. **Prompt for domain** -- replace all `YOUR_DOMAIN` placeholders
+4. **Prompt for GitHub org** -- replace all `YOUR_GITHUB_ORG` placeholders
+5. **Build the Summoning Room** -- build and install the Electron desktop app:
    ```bash
-   cd desktop/tmux-sessions && bash build.sh
-   cp -r "Tmux Sessions.app" ~/Desktop/
+   cd desktop/command-center && npm install && npm run build
+   # Copy the built app to Desktop or Applications
+   cp -r "dist/mac-arm64/Summoning Room.app" ~/Desktop/
    ```
-6. **Create a Claude Code launcher on the Desktop** — a `.command` file that opens Claude Code with `--dangerously-skip-permissions`:
+6. **Install the Command Center API server** -- the Summoning Room auto-starts this, but you can set it up manually:
+   ```bash
+   mkdir -p ~/.tmux/cmdcenter
+   cp desktop/command-center/server.py ~/.tmux/cmdcenter/server.py
+   ```
+7. **Create a Claude Code launcher on the Desktop** -- a `.command` file that opens Claude Code with `--dangerously-skip-permissions`:
    ```bash
    cat > ~/Desktop/Claude\ Code.command << 'EOF'
    #!/bin/bash
@@ -82,13 +90,13 @@ When a Claude Code instance reads this repo for the first time, it should:
    EOF
    chmod +x ~/Desktop/Claude\ Code.command
    ```
-7. **Install and configure tmux** — copy the tmux config:
+8. **Install and configure tmux** -- copy the tmux config:
    ```bash
    cp claude-config/tmux.conf ~/.tmux.conf
    # Install TPM (tmux plugin manager)
    git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
    ```
-8. **Copy Claude Code settings** — install hooks config:
+9. **Copy Claude Code settings** -- install hooks config:
    ```bash
    cp claude-config/settings.json.template ~/.claude/settings.json
    # Update hook paths to match the user's home directory
@@ -217,15 +225,16 @@ The SAM template (`infrastructure/templates/`) deploys:
 | BusinessExpenses | Expense tracking | - |
 
 ### Lambda Functions
-- Telegram webhook → SQS
-- SMS webhook (Twilio) → SQS
-- Bot webhook (HMAC-signed) → SQS
-- Voice webhook → SQS
+- Telegram webhook -> SQS
+- SMS webhook (Twilio) -> SQS
+- Bot webhook (HMAC-signed) -> SQS
+- Voice webhook -> SQS
+- Gmail webhook -> SQS
 - Dashboard API (tracker, media, memory, output, stocks, projects)
 
 ### Other Resources
 - API Gateway + Cognito authorizer
-- SQS queue (OrchestratorInbox) — 24h retention, 30s visibility
+- SQS queue (OrchestratorInbox) -- 24h retention, 30s visibility
 - S3 buckets (media, expense receipts)
 - CloudFront distribution + S3 origin
 - EventBridge daily summary cron
@@ -242,6 +251,7 @@ The Claude Code memory lives at `~/.claude/projects/<project-hash>/memory/` and 
 ```
 memory/
 ├── MEMORY.md              # Index file (always loaded into context)
+├── contacts.json          # Contact directory
 ├── config/                # Environment, preferences, credentials
 ├── codebase/              # Per-repo architecture notes
 ├── operations/            # Deploy procedures, fixes, RPA
@@ -264,18 +274,69 @@ Content here...
 
 ---
 
+## Summoning Room (Command Center)
+
+The Summoning Room is an Electron desktop app that replaces the old Tkinter-based Tmux Sessions GUI. It provides a 4-slot terminal grid where each slot can attach to a tmux session running a Claude agent.
+
+### Architecture
+
+```
+Summoning Room (Electron)
+├── main.js         # Electron main process, PtyManager (node-pty)
+├── preload.js      # IPC bridge (window.cc)
+├── renderer/
+│   ├── index.html  # Shell
+│   ├── app.js      # UI logic, xterm.js terminals, sidebar
+│   └── styles.css  # Dark theme
+└── package.json    # electron, @xterm/xterm, node-pty
+
+~/.tmux/cmdcenter/
+└── server.py       # Python API server (port 7777)
+                    # - Lists tmux sessions + DynamoDB agent metadata
+                    # - Trash/restore/rename agents
+                    # - Open sessions in iTerm2 via AppleScript
+```
+
+### Features
+
+- **4-slot terminal grid** -- attach any tmux session to any slot, maximize individual slots
+- **Sidebar** -- lists all active tmux sessions with DynamoDB agent titles
+- **Context menu** -- right-click to assign to slot, rename, or trash
+- **Slot persistence** -- remembers which sessions were in which slots across restarts
+- **New Claude button** -- spawns a new tmux session with `claude --dangerously-skip-permissions`
+- **iTerm2 integration** -- open individual sessions or quad-view in iTerm2 via AppleScript
+- **Auto-start API server** -- starts `~/.tmux/cmdcenter/server.py` if not running
+
+### CLI
+
+```bash
+# Launch the tmux command center dashboard (terminal-based, separate from Electron app)
+cmdcenter
+
+# Show session status
+cmdcenter status
+
+# Kill the command center session
+cmdcenter kill
+```
+
+---
+
 ## Tmux Session Management
 
-The orchestrator manages Claude agents as tmux windows:
+The orchestrator manages Claude agents as tmux sessions:
 
 ```bash
 # List all Claude sessions
 claude-sessions list
 
-# Attach to a session
+# Attach to the session
 claude-sessions attach
 
-# Start a new Claude session
+# Kill a window
+claude-sessions kill N
+
+# Spawn a new Claude window
 claude-sessions new
 
 # Start the tmux watcher (delivers commands to sessions)
@@ -304,14 +365,7 @@ The config at `claude-config/tmux.conf` sets up tmux for agent use:
 | `new-window -c #{pane_current_path}` | New windows inherit working directory |
 | `session-closed` hook | Marks dead sessions in AgentTracker DynamoDB |
 
-Each agent gets its own **new window** (not a pane) — this keeps sessions isolated and easy to navigate via the Tmux Sessions desktop app.
-
-### Desktop Shortcuts
-
-Two desktop shortcuts should be created during setup:
-
-1. **Tmux Sessions.app** — Tkinter GUI for managing tmux agent sessions (open, trash, restore, create)
-2. **Claude Code.command** — Opens Claude Code with `--dangerously-skip-permissions` in Terminal
+Note: The Summoning Room disables tmux mouse per-session when attaching via node-pty (so xterm.js handles selection natively) and re-enables it on detach so other tmux clients (iTerm2, terminal) still get mouse support.
 
 ---
 
@@ -349,20 +403,37 @@ Jobs are managed via macOS LaunchAgents (`~/Library/LaunchAgents/com.YOUR_BOT_NA
 
 ---
 
+## Bin Scripts
+
+| Script | Description |
+|--------|-------------|
+| `YOUR_BOT_NAME-bootstrap` | Full fresh-Mac bootstrap |
+| `YOUR_BOT_NAME-sync` | Push/pull config to S3 |
+| `claude-sessions` | Manage Claude tmux sessions (list, attach, new, kill) |
+| `claude-cleanup.py` | Clean up stale agent sessions |
+| `cmdcenter` | Terminal-based tmux dashboard (separate from Summoning Room) |
+| `creds` | SSM-backed credential manager |
+| `heartbeat.py` | Agent heartbeat utility |
+| `schedule` | Create one-time or recurring launchd jobs |
+| `schedule-list` | List all scheduled jobs |
+| `set-agent-meta` | Update agent metadata in DynamoDB |
+
+---
+
 ## Backup & Restore
 
 ```bash
 # Sync config to S3
-bin/bot-sync push
+bin/YOUR_BOT_NAME-sync push
 
 # Restore config from S3
-bin/bot-sync pull
+bin/YOUR_BOT_NAME-sync pull
 
 # Backup credentials to SSM
-bin/bot-sync backup-creds
+bin/YOUR_BOT_NAME-sync backup-creds
 
 # Full fresh-Mac bootstrap
-bin/bot-bootstrap
+bin/YOUR_BOT_NAME-bootstrap
 ```
 
 ---

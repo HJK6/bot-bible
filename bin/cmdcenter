@@ -1,0 +1,72 @@
+#!/bin/bash
+# Command Center — tmux dashboard for all Claude/agent sessions
+# Usage:
+#   cmdcenter           Launch dashboard showing all sessions
+#   cmdcenter status    Show all sessions at a glance
+#   cmdcenter kill      Kill the command center session
+
+SESSION="cmdcenter"
+TMUX_BIN="/opt/homebrew/bin/tmux"
+
+get_sessions() {
+    # Get claude and agent sessions, sorted newest first
+    $TMUX_BIN list-sessions -F '#{session_name} #{session_created}' 2>/dev/null \
+        | grep -E '^(claude-|agent-)' \
+        | sort -k2 -rn \
+        | awk '{print $1}'
+}
+
+case "${1:-launch}" in
+    status)
+        echo -e "\033[1;34m── Command Center Status ──\033[0m"
+        echo ""
+        $TMUX_BIN list-sessions -F "#{?session_attached,\033[32m●\033[0m,\033[31m○\033[0m} #S" 2>/dev/null || echo "No tmux sessions running."
+        echo ""
+        echo -e "\033[90mAttached=● Detached=○\033[0m"
+        ;;
+
+    kill)
+        if $TMUX_BIN has-session -t "$SESSION" 2>/dev/null; then
+            $TMUX_BIN kill-session -t "$SESSION"
+            echo "Command center killed."
+        else
+            echo "No command center session found."
+        fi
+        ;;
+
+    launch|"")
+        # Kill existing command center to rebuild fresh
+        $TMUX_BIN kill-session -t "$SESSION" 2>/dev/null
+
+        # Collect sessions
+        mapfile -t SESSIONS < <(get_sessions)
+        COUNT=${#SESSIONS[@]}
+
+        if [ "$COUNT" -eq 0 ]; then
+            echo "No claude/agent sessions found."
+            $TMUX_BIN new-session -s "$SESSION" -c "$HOME"
+            exit 0
+        fi
+
+        # Window 1: Dashboard (session list + live view of up to 4 sessions)
+        # Create the command center with the dashboard script in pane 1
+        $TMUX_BIN new-session -d -s "$SESSION" \
+            "~/.tmux/scripts/dashboard.sh"
+
+        # Window 2+: One window per session, each attached as a grouped/linked view
+        for sess in "${SESSIONS[@]}"; do
+            $TMUX_BIN new-window -t "$SESSION" -n "$sess" \
+                "$TMUX_BIN attach-session -t '$sess' -r"
+        done
+
+        # Select window 1 (dashboard)
+        $TMUX_BIN select-window -t "$SESSION:1"
+
+        # Attach
+        $TMUX_BIN attach-session -t "$SESSION"
+        ;;
+
+    *)
+        echo "Usage: cmdcenter [status|kill]"
+        ;;
+esac

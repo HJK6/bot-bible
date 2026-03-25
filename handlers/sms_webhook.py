@@ -35,7 +35,7 @@ def _get_auth_token() -> str:
 TWIML_EMPTY = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
 
 
-# -- Twilio signature validation -------------------------------------------
+# ── Twilio signature validation (self-contained) ──────────────────────
 
 
 def _remove_port(uri):
@@ -104,7 +104,7 @@ def _validate_twilio_request(event, auth_token: str) -> bool:
     return False
 
 
-# -- Handler ---------------------------------------------------------------
+# ── Handler ────────────────────────────────────────────────────────────
 
 
 def smsWebhookHandler(event, context):

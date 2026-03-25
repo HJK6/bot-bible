@@ -9,7 +9,7 @@ import os
 import boto3
 
 QUEUE_URL = os.environ.get("ORCHESTRATOR_QUEUE_URL", "")
-OWNER_CHAT_ID = int(os.environ.get("OWNER_CHAT_ID", "0"))
+OWNER_CHAT_ID = int(os.environ.get("OWNER_CHAT_ID", "5697607361"))
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 sqs = boto3.client("sqs", region_name=REGION)

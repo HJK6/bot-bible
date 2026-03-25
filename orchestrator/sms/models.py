@@ -9,7 +9,7 @@ sys.path.insert(0, "/Users/YOUR_USERNAME/land-bot")
 from modules.Models import DataclassBase
 
 
-# -- Scopes ----------------------------------------------------------------
+# ── Scopes ────────────────────────────────────────────────────────────
 
 class Scope:
     """Known scope constants."""
@@ -19,11 +19,11 @@ class Scope:
     CHAT = "chat"                 # General chat only
 
 
-# -- Contacts --------------------------------------------------------------
+# ── Contacts ──────────────────────────────────────────────────────────
 
 @dataclass
 class SmsContact(DataclassBase):
-    """BotSmsContacts table. PK: phone (E.164, e.g. '+1XXXXXXXXXX')."""
+    """BartSmsContacts table. PK: phone (E.164, e.g. '+18179078815')."""
 
     phone: str = ""               # E.164 format
     name: str = ""                # Display name
@@ -33,11 +33,11 @@ class SmsContact(DataclassBase):
     updated_at: int = 0           # Epoch ms
 
 
-# -- Sessions --------------------------------------------------------------
+# ── Sessions ──────────────────────────────────────────────────────────
 
 @dataclass
 class SmsSession(DataclassBase):
-    """BotSmsSessions table. PK: phone, SK: session_id.
+    """BartSmsSessions table. PK: phone, SK: session_id.
     A session groups related messages within a time window.
     After SESSION_GAP_HOURS of inactivity, a new session starts."""
 
@@ -50,11 +50,11 @@ class SmsSession(DataclassBase):
     status: str = "active"        # active | compacted | closed
 
 
-# -- Messages --------------------------------------------------------------
+# ── Messages ──────────────────────────────────────────────────────────
 
 @dataclass
 class SmsMessage(DataclassBase):
-    """BotSmsMessages table. PK: session_id, SK: message_id (ULID-style string).
+    """BartSmsMessages table. PK: session_id, SK: message_id (ULID-style string).
     Individual messages within a session."""
 
     session_id: str = ""
@@ -66,7 +66,7 @@ class SmsMessage(DataclassBase):
     created_at: int = 0           # Epoch ms (informational)
 
 
-# -- Expenses --------------------------------------------------------------
+# ── Expenses ──────────────────────────────────────────────────────────
 
 @dataclass
 class SmsExpenseItem(DataclassBase):
@@ -78,7 +78,7 @@ class SmsExpenseItem(DataclassBase):
 
 @dataclass
 class SmsExpense(DataclassBase):
-    """BotSmsExpenses table. PK: event_id, SK: expense_id.
+    """BartSmsExpenses table. PK: event_id, SK: expense_id.
     Tracks individual expenses within an event (e.g. bachelor_party)."""
 
     event_id: str = ""            # e.g. "bachelor_party"

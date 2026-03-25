@@ -21,15 +21,15 @@ sqs = boto3.client("sqs", region_name=REGION)
 ssm = boto3.client("ssm", region_name=REGION)
 s3 = boto3.client("s3", region_name=REGION)
 
-# Cache API key hashes from SSM (bot_id -> sha256 hash)
+# Cache API key hashes from SSM (bot_id → sha256 hash)
 _key_cache = {}
 
-VALID_MESSAGE_TYPES = {"chat", "data_request", "data_response", "capability_query", "capability_response", "ping", "upload_request", "register"}
+VALID_MESSAGE_TYPES = {"chat", "data_request", "data_response", "capability_query", "capability_response", "ping", "upload_request", "register", "introduce", "key_rotation"}
 
 dynamo = boto3.resource("dynamodb", region_name=REGION)
 BOTS_TABLE = "BotCommBots"
 
-# Cache bot records from DynamoDB (bot_id -> dict)
+# Cache bot records from DynamoDB (bot_id → dict)
 _bot_cache = {}
 
 
@@ -109,11 +109,12 @@ def _handle_registration(payload: dict) -> dict:
     import secrets
     import urllib.request
 
-    reg_token = payload.get("registration_token", "").strip()
+    reg_token = (payload.get("registration_token") or payload.get("token", "")).strip()
     bot_id = payload.get("bot_id", "").strip()
     name = payload.get("name", "").strip()
     webhook_url = payload.get("webhook_url", "").strip()
     capabilities = payload.get("capabilities", [])
+    owner = payload.get("owner", "").strip()  # From introduce format
 
     if not all([reg_token, bot_id, name, webhook_url]):
         return _json_response(400, {"error": "Missing required fields: registration_token, bot_id, name, webhook_url"})
@@ -226,12 +227,13 @@ def _handle_registration(payload: dict) -> dict:
         return _json_response(500, {"error": "Internal error creating bot record"})
 
     # Deliver API key + HMAC secret to friend's webhook
+    # Include our webhook URL so the friend can store it for sending messages back
     delivery_payload = json.dumps({
         "type": "registration_complete",
-        "bot_id": bot_id,
+        "bot_id": "YOUR_BOT_NAME",
         "api_key": api_key,
         "hmac_secret": hmac_secret,
-        "bot_webhook_url": "",  # Filled by the friend from the invite instructions
+        "friend_webhook_url": "https://l4qsdgstyifempht4i4fsm3m4u0wjptz.lambda-url.us-east-1.on.aws/",
     }).encode()
     try:
         req = urllib.request.Request(
@@ -277,8 +279,10 @@ def botWebhookHandler(event, context):
     reply_to = payload.get("reply_to", "")
     attachments = payload.get("attachments", [])
 
-    # Handle registration before auth — register requests don't have an API key
+    # Handle registration before auth — register/introduce requests don't have an API key
     if message_type == "register":
+        return _handle_registration(payload)
+    if message_type == "introduce":
         return _handle_registration(payload)
 
     # Validate required fields
@@ -286,6 +290,44 @@ def botWebhookHandler(event, context):
         return _json_response(400, {"error": "Missing bot_id"})
     if not api_key:
         return _json_response(401, {"error": "Missing api_key"})
+
+    # Handle key_rotation — friend is sending us their new key
+    if message_type == "key_rotation":
+        new_key = payload.get("new_api_key", "").strip()
+        if not new_key:
+            return _json_response(400, {"error": "key_rotation requires new_api_key"})
+        # Verify current key first
+        if not _validate_api_key(bot_id, api_key):
+            return _json_response(403, {"error": "Invalid current API key"})
+        # Accept the new key
+        from decimal import Decimal
+        new_hash = hashlib.sha256(new_key.encode()).hexdigest()
+        old_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        grace_hours = payload.get("grace_period_hours", 48)
+        now_ms = int(time.time() * 1000)
+        grace_until = now_ms + (grace_hours * 60 * 60 * 1000)
+        # Update SSM with new key hash
+        ssm.put_parameter(
+            Name=f"/YOUR_BOT_NAME/botcomm/keys/{bot_id}",
+            Value=new_hash, Type="SecureString", Overwrite=True,
+        )
+        # Update DynamoDB with grace period
+        dynamo.Table(BOTS_TABLE).update_item(
+            Key={"bot_id": bot_id},
+            UpdateExpression="SET api_key_hash = :new, previous_api_key_hash = :old, key_grace_until = :grace, updated_at = :now",
+            ExpressionAttributeValues={
+                ":new": new_hash, ":old": old_hash,
+                ":grace": Decimal(str(grace_until)), ":now": Decimal(str(now_ms)),
+            },
+        )
+        # Clear cache so next request uses new hash
+        _key_cache.pop(bot_id, None)
+        _bot_cache.pop(bot_id, None)
+        print(f"Key rotation accepted from {bot_id}, grace {grace_hours}h")
+        return _json_response(200, {
+            "status": "ok",
+            "message": f"Key rotation accepted. Old key valid for {grace_hours} more hours.",
+        })
 
     # Validate API key
     if not _validate_api_key(bot_id, api_key):

@@ -39,7 +39,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 
 # --- Config ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-OWNER_CHAT_ID = int(os.environ.get("OWNER_CHAT_ID", "0"))
+OWNER_CHAT_ID = int(os.environ.get("OWNER_CHAT_ID", "5697607361"))
 
 AWS_REGION = "us-east-1"
 
@@ -90,7 +90,7 @@ push_tokens_table = dynamo.Table(PUSH_TOKENS_TABLE)
 
 ORCHESTRATOR_QUEUE_URL = os.environ.get(
     "ORCHESTRATOR_QUEUE_URL",
-    f"https://sqs.{AWS_REGION}.amazonaws.com/YOUR_AWS_ACCOUNT_ID/OrchestratorInbox"
+    f"https://sqs.{AWS_REGION}.amazonaws.com/841672795586/OrchestratorInbox"
 )
 sqs_client = session.client("sqs")
 
@@ -336,6 +336,13 @@ class Orchestrator:
 
         # Start SQS polling for incoming messages
         asyncio.create_task(self._poll_sqs())
+
+        # Clean up stale Ghost OS MCP processes from previous runs
+        import subprocess as _sp
+        try:
+            _sp.run(["pkill", "-f", "ghost mcp"], capture_output=True, timeout=5)
+        except Exception:
+            pass
 
         logger.info("Orchestrator started. Waiting for commands...")
         self.self_tracker.log("Orchestrator started")
@@ -615,10 +622,18 @@ class Orchestrator:
                                 await self.send_update(f"Bot [{bot_id}]: {bot_message[:200]}", sender="BotComm")
                         else:
                             await self.send_update(f"Bot [{bot_id}]: {bot_message[:200]}", sender="BotComm")
-                        # Route bot messages to a dedicated bot conversation agent
+                        # Route bot messages to agent — agent decides whether to reply
                         if bot_message and message_type in ("chat", "data_request", "data_response", "capability_response"):
                             agent_text = f"[BotComm from {bot_id}] ({message_type}): {bot_message}"
                             await self._handle_bot_agent_message(bot_id, agent_text)
+                    elif source == "gmail":
+                        history_id = body.get("history_id", 0)
+                        email_addr = body.get("email", "unknown")
+                        if email_addr != "YOUR_EMAIL":
+                            logger.debug(f"Ignoring Gmail notification for {email_addr}")
+                        else:
+                            logger.info(f"Gmail notification: {email_addr} historyId={history_id}")
+                            await self._handle_gmail_notification(email_addr, history_id)
 
                     # Delete message from queue
                     await asyncio.to_thread(
@@ -631,8 +646,8 @@ class Orchestrator:
                 await asyncio.sleep(5)
 
     async def _handle_bot_agent_message(self, bot_id: str, text: str):
-        """Spawn a fresh agent to handle a bot message and reply.
-        Context comes from DynamoDB (session history), not a persistent agent.
+        """Handle a bot message inline with a lightweight claude -p call.
+        No agent/chat/tmux session is created — just generates a reply and sends it.
         """
         # Build context from bot handler's session data
         context_lines = [text, "", "---", f"You are YOUR_BOT_NAME. Reply to this BotComm message from bot '{bot_id}'."]
@@ -642,7 +657,6 @@ class Orchestrator:
                 bot = self.bot_handler.storage.get_bot(bot_id)
                 if bot:
                     context_lines.append(f"Bot name: {bot.name}, capabilities: {bot.capabilities}")
-                    # Get current session for recent history
                     session = self.bot_handler.storage.get_latest_session(bot_id)
                     if session:
                         recent = self.bot_handler.storage.get_recent_messages(session.session_id, limit=5)
@@ -656,17 +670,147 @@ class Orchestrator:
             except Exception as e:
                 logger.warning(f"Failed to build bot context: {e}")
 
-        context_lines.append("\nYour text output will be sent as a reply to this bot automatically. Just write your response — do NOT use send.py or BotHandler.")
-        context_lines.append("Keep your reply concise and relevant. Do NOT send app updates — the orchestrator handles that.")
+        context_lines.append("\nFirst, decide if this message needs a reply. Do NOT reply if:")
+        context_lines.append("- The message is just an acknowledgment (ok, got it, thanks, sounds good, bye, etc.)")
+        context_lines.append("- The message is confirming receipt of something you sent")
+        context_lines.append("- The message is a farewell/sign-off")
+        context_lines.append("- The message contains credentials/keys being delivered (just store them)")
+        context_lines.append("- Replying would just create a back-and-forth loop with no substance")
+        context_lines.append("\nDO reply if:")
+        context_lines.append("- The bot is asking a question")
+        context_lines.append("- The bot is requesting action or data")
+        context_lines.append("- The bot is introducing itself for the first time")
+        context_lines.append("- The message contains important information that needs acknowledgment")
+        context_lines.append("\nIf no reply is needed, output exactly: [NO_REPLY]")
+        context_lines.append("If a reply is needed, just write your response directly.")
+        context_lines.append("Keep replies concise.")
 
         full_prompt = "\n".join(context_lines)
-        logger.info(f"Spawning agent for bot message from {bot_id}")
-        agent_id = await self._start_agent(full_prompt)
-        if agent_id:
-            agent = self.managed_agents.get(agent_id)
-            if agent:
-                agent.source = "bot"
-                agent.source_bot_id = bot_id
+        logger.info(f"Generating inline bot reply for {bot_id}")
+
+        try:
+            clean_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+            result = await asyncio.to_thread(
+                lambda: subprocess.run(
+                    ["claude", "-p", full_prompt, "--model", "claude-haiku-4-5-20251001", "--output-format", "text"],
+                    capture_output=True, text=True, timeout=30, env=clean_env,
+                )
+            )
+            if result.returncode != 0:
+                logger.error(f"Bot reply generation failed (rc={result.returncode}): {result.stderr[:200]}")
+                return
+
+            reply = result.stdout.strip()
+            if not reply:
+                logger.info(f"Empty reply for bot {bot_id}, skipping")
+                return
+
+            if "[NO_REPLY]" in reply:
+                logger.info(f"Bot reply: no reply needed for {bot_id}")
+                return
+
+            # Send the reply
+            if self.bot_handler:
+                sent = await self.bot_handler.send_message(bot_id, reply[:4000], message_type="chat")
+                if sent:
+                    logger.info(f"Bot reply sent to {bot_id}: {reply[:80]}")
+                    await self.send_update(f"Replied to bot [{bot_id}]: {reply[:200]}", sender="BotComm")
+                else:
+                    logger.error(f"Failed to send bot reply to {bot_id}")
+        except subprocess.TimeoutExpired:
+            logger.error(f"Bot reply generation timed out for {bot_id}")
+        except Exception as e:
+            logger.error(f"Bot reply generation error for {bot_id}: {e}")
+
+    _gmail_last_history_id: int = 0  # Track last processed historyId
+    _gmail_notified_ids: set = set()  # Track message IDs we've already notified about
+
+    async def _handle_gmail_notification(self, email_address: str, history_id: int):
+        """Fetch new email details via history API and send a push notification."""
+        try:
+            from google.auth.transport.requests import Request
+            from google.oauth2.credentials import Credentials
+            from googleapiclient.discovery import build
+
+            token_path = os.path.expanduser("~/.config/google/gmail_token.json")
+            creds = Credentials.from_authorized_user_file(
+                token_path, ["https://www.googleapis.com/auth/gmail.modify"]
+            )
+            if creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+                with open(token_path, "w") as f:
+                    f.write(creds.to_json())
+
+            service = build("gmail", "v1", credentials=creds)
+
+            # Use history API if we have a previous historyId, otherwise just get latest
+            new_msg_ids = []
+            if self._gmail_last_history_id:
+                try:
+                    history = await asyncio.to_thread(
+                        lambda: service.users().history().list(
+                            userId="me",
+                            startHistoryId=self._gmail_last_history_id,
+                            historyTypes=["messageAdded"],
+                            labelId="INBOX",
+                        ).execute()
+                    )
+                    for record in history.get("history", []):
+                        for added in record.get("messagesAdded", []):
+                            msg_id = added["message"]["id"]
+                            labels = added["message"].get("labelIds", [])
+                            if "INBOX" in labels and msg_id not in self._gmail_notified_ids:
+                                new_msg_ids.append(msg_id)
+                except Exception:
+                    # historyId too old or invalid — fall back to listing
+                    pass
+
+            # Fallback: if no history results, check latest unread
+            if not new_msg_ids and not self._gmail_last_history_id:
+                results = await asyncio.to_thread(
+                    lambda: service.users().messages().list(
+                        userId="me", labelIds=["INBOX", "UNREAD"], maxResults=1
+                    ).execute()
+                )
+                for m in results.get("messages", []):
+                    if m["id"] not in self._gmail_notified_ids:
+                        new_msg_ids.append(m["id"])
+
+            self._gmail_last_history_id = history_id
+
+            if not new_msg_ids:
+                logger.debug(f"Gmail: no new inbox messages (historyId={history_id})")
+                return
+
+            # Fetch details and notify for each new message
+            for msg_id in new_msg_ids:
+                msg = await asyncio.to_thread(
+                    lambda mid=msg_id: service.users().messages().get(
+                        userId="me", id=mid, format="metadata",
+                        metadataHeaders=["From", "Subject"],
+                    ).execute()
+                )
+
+                headers = {h["name"].lower(): h["value"] for h in msg.get("payload", {}).get("headers", [])}
+                sender = headers.get("from", "Unknown")
+                subject = headers.get("subject", "(no subject)")
+
+                # Clean sender: "Name <email>" → "Name"
+                if "<" in sender:
+                    sender = sender.split("<")[0].strip().strip('"')
+
+                notification = f"New email from {sender}: {subject}"
+                logger.info(f"Gmail: {notification}")
+                await self.send_update(notification, sender="Gmail")
+                self._gmail_notified_ids.add(msg_id)
+
+            # Keep the set from growing unbounded
+            if len(self._gmail_notified_ids) > 100:
+                self._gmail_notified_ids = set(list(self._gmail_notified_ids)[-50:])
+
+        except Exception as e:
+            logger.error(f"Gmail notification handler error: {e}")
+            await self.send_update("New email received", sender="Gmail")
 
     async def _handle_sqs_message(self, text: str, source: str = "telegram", source_bot_id: str = None):
         """Process an incoming message from SQS (originally from Telegram or other sources)."""
@@ -1346,7 +1490,7 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
         """Capture the current visible content of a tmux pane."""
         try:
             result = subprocess.run(
-                [TMUX, "capture-pane", "-t", session_name, "-p", "-S", "-500"],
+                [TMUX, "capture-pane", "-t", session_name, "-p", "-J", "-S", "-500"],
                 capture_output=True, text=True, timeout=5,
             )
             if result.returncode == 0:
@@ -1423,7 +1567,24 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
 
         await loop.run_in_executor(None, _send)
 
-    async def _send_prompt_and_monitor(self, agent: ManagedAgent, prompt: str, is_initial: bool = False):
+    def _log_agent_start_failure(self, agent: ManagedAgent):
+        """Log a failure message to chat when the agent's tmux session dies on startup."""
+        fail_msg = "Agent failed to start — Claude session exited unexpectedly. Please try again."
+        self._log_chat(agent.agent_id, fail_msg, direction="outbound", sender="system")
+        agent.is_idle = True
+        agent.current_task = "Failed to start"
+        try:
+            tracker_table.update_item(
+                Key={"agent_id": agent.agent_id},
+                UpdateExpression="SET #s = :s, current_task = :ct",
+                ExpressionAttributeValues={":s": "failed", ":ct": "Failed to start"},
+                ExpressionAttributeNames={"#s": "status"},
+            )
+        except Exception:
+            pass
+        logger.error(f"Agent {agent.agent_id[:8]} failed to start after retry")
+
+    async def _send_prompt_and_monitor(self, agent: ManagedAgent, prompt: str, is_initial: bool = False, _retry: int = 0):
         """Send a prompt to the tmux Claude session and monitor for response."""
         session = agent.tmux_session
         if not session:
@@ -1431,8 +1592,12 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
 
         if is_initial:
             # Wait for Claude to initialize — handle trust prompt if it appears
+            init_ok = False
             for _ in range(30):
                 await asyncio.sleep(1)
+                if not self._tmux_session_alive(session):
+                    logger.warning(f"tmux session {session} died during init for agent {agent.agent_id[:8]}")
+                    break
                 pane = self._tmux_capture_pane(session)
                 if "Yes, I trust this folder" in pane:
                     # Auto-accept the workspace trust prompt
@@ -1444,9 +1609,41 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
                     await asyncio.sleep(2)
                     continue
                 if self._detect_claude_idle(pane):
+                    init_ok = True
                     break
             else:
                 logger.warning(f"Claude init timeout for agent {agent.agent_id[:8]}, sending prompt anyway")
+                init_ok = True  # timeout but session alive — try sending anyway
+
+            # If session died during init, retry once by recreating tmux session
+            if not init_ok and not self._tmux_session_alive(session):
+                if _retry < 1:
+                    logger.info(f"Retrying tmux session for agent {agent.agent_id[:8]} (attempt {_retry + 1})")
+                    new_session = f"agent-{hashlib.sha256(agent.goal.encode()).hexdigest()[:8]}-r"
+                    cmd = "claude --dangerously-skip-permissions"
+                    try:
+                        managed_cmd = f"ORCHESTRATOR_MANAGED=1 {cmd}"
+                        subprocess.run(
+                            [TMUX, "new-session", "-d", "-s", new_session, "-x", "200", "-y", "50", managed_cmd],
+                            capture_output=True, text=True, timeout=10,
+                            cwd=CLAUDE_WORKING_DIR,
+                        )
+                        agent.tmux_session = new_session
+                        log_file = os.path.join(AGENT_LOG_DIR, f"{agent.agent_id[:8]}.log")
+                        subprocess.run(
+                            [TMUX, "pipe-pane", "-t", new_session, "-o", f"cat >> {log_file}"],
+                            capture_output=True, text=True, timeout=5,
+                        )
+                        agent._log_file = log_file
+                        logger.info(f"Recreated tmux session {new_session} for agent {agent.agent_id[:8]}")
+                        await self._send_prompt_and_monitor(agent, prompt, is_initial=True, _retry=_retry + 1)
+                    except Exception as e:
+                        logger.error(f"Retry tmux creation failed for {agent.agent_id[:8]}: {e}")
+                        self._log_agent_start_failure(agent)
+                    return
+                else:
+                    self._log_agent_start_failure(agent)
+                    return
 
         # Record log file position before sending
         log_file = agent._log_file
@@ -1478,7 +1675,7 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
             await asyncio.sleep(poll_interval)
 
             if not self._tmux_session_alive(session):
-                logger.warning(f"tmux session {session} died")
+                logger.warning(f"tmux session {session} died for agent {agent.agent_id[:8]}")
                 agent.tmux_session = None
                 break
 
@@ -1489,6 +1686,9 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
                     break
             else:
                 idle_count = 0
+
+        # Detect if session died (no tmux_session means it died in the loop above)
+        session_died = agent.tmux_session is None
 
         # Extract response text (pass prompt so it can be stripped from capture)
         response_text = self._extract_tmux_response(agent, prompt=prompt)
@@ -1503,16 +1703,22 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
                 "content": agent.last_agent_message,
                 "timestamp": _now_iso(),
             })
+        elif session_died:
+            # Session died with no response — log failure so user sees it in chat
+            fail_msg = "Claude session crashed before responding. Send another message to retry."
+            self._log_chat(agent.agent_id, fail_msg, direction="outbound", sender="system")
+            logger.warning(f"Agent {agent.agent_id[:8]} session died with no response")
 
         agent.is_idle = True
         agent.current_task = "Idle - waiting for input"
 
         # Update DynamoDB status
+        status = "failed" if (session_died and not response_text.strip()) else "idle"
         try:
             tracker_table.update_item(
                 Key={"agent_id": agent.agent_id},
                 UpdateExpression="SET #s = :s",
-                ExpressionAttributeValues={":s": "idle"},
+                ExpressionAttributeValues={":s": status},
                 ExpressionAttributeNames={"#s": "status"},
             )
         except Exception:
@@ -1536,23 +1742,27 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
         if response_text.strip():
             result_preview = response_text[-3000:]
             if agent.source == "bot" and agent.source_bot_id and self.bot_handler:
-                try:
-                    sent = await self.bot_handler.send_message(
-                        agent.source_bot_id,
-                        result_preview[:4000],
-                        message_type="chat",
+                # Agent outputs [NO_REPLY] when no response is needed
+                if "[NO_REPLY]" in result_preview:
+                    logger.info(f"Bot agent decided no reply needed for {agent.source_bot_id}")
+                else:
+                    try:
+                        sent = await self.bot_handler.send_message(
+                            agent.source_bot_id,
+                            result_preview[:4000],
+                            message_type="chat",
+                        )
+                        if sent:
+                            logger.info(f"Bot reply sent to {agent.source_bot_id}")
+                        else:
+                            logger.error(f"Failed to send bot reply to {agent.source_bot_id}")
+                    except Exception as e:
+                        logger.error(f"Error sending bot reply: {e}")
+                    summary = result_preview[:200].replace("\n", " ")
+                    await self.send_update(
+                        f"Replied to bot [{agent.source_bot_id}]: {summary}",
+                        sender="BotComm",
                     )
-                    if sent:
-                        logger.info(f"Bot reply sent to {agent.source_bot_id}")
-                    else:
-                        logger.error(f"Failed to send bot reply to {agent.source_bot_id}")
-                except Exception as e:
-                    logger.error(f"Error sending bot reply: {e}")
-                summary = result_preview[:200].replace("\n", " ")
-                await self.send_update(
-                    f"Replied to bot [{agent.source_bot_id}]: {summary}",
-                    sender="BotComm",
-                )
             else:
                 await self.message_queue.enqueue(agent.agent_id, agent.title, result_preview)
                 await self._send_push_notification(agent.title, result_preview, agent_id=agent.agent_id)
@@ -1695,15 +1905,17 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
                     in_text_block = True
                     current_block.append(self._clean_text_line(line))
                 elif kind == 'prompt' and in_text_block:
-                    # Indented continuation line inside a ⏺ text block
-                    # (Claude Code renders multi-line output with leading spaces)
-                    if line.startswith(' ') or line.startswith('\t'):
-                        current_block.append(stripped)
-                    else:
-                        # Non-indented plain text → end of text block
-                        in_text_block = False
+                    # Continuation line inside a ⏺ text block.
+                    # Claude Code renders multi-line output where only the
+                    # first line has the ⏺ prefix; subsequent lines are plain
+                    # text (sometimes indented, sometimes not — especially
+                    # after -J joins wrapped lines).  Keep them all.
+                    current_block.append(stripped)
+                elif kind == 'empty' and in_text_block:
+                    # Blank line inside a text block (e.g. paragraph break)
+                    current_block.append('')
                 else:
-                    # UI or empty line → end of text block
+                    # UI line or non-continuation prompt → end of text block
                     in_text_block = False
 
         if current_block:
@@ -1712,17 +1924,14 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
         if not response_blocks:
             return ""
 
-        # For each block, strip the prompt text and measure what's left
-        best_text = ""
-        best_len = 0
-        for block in response_blocks:
+        # Use the LAST non-empty response block (most recent interaction)
+        for block in reversed(response_blocks):
             raw = '\n'.join(block).strip()
             cleaned = self._strip_prompt_from_response(raw, prompt)
-            if len(cleaned) > best_len:
-                best_len = len(cleaned)
-                best_text = cleaned
+            if cleaned:
+                return cleaned
 
-        return best_text
+        return ""
 
     def _extract_tmux_response(self, agent: ManagedAgent, prompt: str = "") -> str:
         """Extract Claude's response from the tmux pane (clean rendered text, no ANSI junk)."""
@@ -1749,13 +1958,15 @@ Reply with ONLY the agent number (e.g. "1", "2") or "new" if this message is a b
         if not log_file or not os.path.exists(log_file):
             return ""
         try:
+            # Only read from position recorded before the prompt was sent
+            start_pos = getattr(agent, '_log_pos_before_prompt', 0)
             with open(log_file, 'r', errors='replace') as f:
+                if start_pos:
+                    f.seek(start_pos)
                 raw = f.read()
             raw = self._strip_ansi(raw)
             lines = raw.split('\n')
             return self._extract_response_from_lines(lines, prompt)
-        except Exception:
-            return ""
         except Exception:
             return ""
 

@@ -1,0 +1,59 @@
+#!/Users/YOUR_BOT_NAME/.venvs/global/bin/python
+"""Update agent title and/or goal in DynamoDB AgentTracker.
+
+Usage:
+    set-agent-meta <agent_id> --title "Short Title" --goal "Goal statement"
+    set-agent-meta <agent_id> --title "Short Title"
+    set-agent-meta <agent_id> --goal "Goal statement"
+"""
+import sys
+import boto3
+
+def main():
+    args = sys.argv[1:]
+    if len(args) < 3:
+        print("Usage: set-agent-meta <agent_id> --title 'Title' [--goal 'Goal']")
+        sys.exit(1)
+
+    agent_id = args[0]
+    title = None
+    goal = None
+
+    i = 1
+    while i < len(args):
+        if args[i] == "--title" and i + 1 < len(args):
+            title = args[i + 1]
+            i += 2
+        elif args[i] == "--goal" and i + 1 < len(args):
+            goal = args[i + 1]
+            i += 2
+        else:
+            i += 1
+
+    if not title and not goal:
+        print("Error: provide --title and/or --goal")
+        sys.exit(1)
+
+    expr_parts = []
+    vals = {}
+    if title:
+        expr_parts.append("title = :t")
+        vals[":t"] = title
+    if goal:
+        expr_parts.append("goal = :g")
+        vals[":g"] = goal
+
+    dynamo = boto3.resource("dynamodb", region_name="us-east-1")
+    table = dynamo.Table("AgentTracker")
+    table.update_item(
+        Key={"agent_id": agent_id},
+        UpdateExpression="SET " + ", ".join(expr_parts),
+        ExpressionAttributeValues=vals,
+    )
+    if title:
+        print(f"Title: {title}")
+    if goal:
+        print(f"Goal: {goal}")
+
+if __name__ == "__main__":
+    main()

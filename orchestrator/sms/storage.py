@@ -15,14 +15,14 @@ logger = logging.getLogger("orchestrator.sms.storage")
 AWS_REGION = "us-east-1"
 
 # Table names
-CONTACTS_TABLE = "BotSmsContacts"
-SESSIONS_TABLE = "BotSmsSessions"
-MESSAGES_TABLE = "BotSmsMessages"
-EXPENSES_TABLE = "BotSmsExpenses"
+CONTACTS_TABLE = "BartSmsContacts"
+SESSIONS_TABLE = "BartSmsSessions"
+MESSAGES_TABLE = "BartSmsMessages"
+EXPENSES_TABLE = "BartSmsExpenses"
 
 
 def _convert_floats(item):
-    """Recursively convert float -> Decimal for DynamoDB."""
+    """Recursively convert float → Decimal for DynamoDB."""
     if isinstance(item, dict):
         return {k: _convert_floats(v) for k, v in item.items()}
     elif isinstance(item, list):
@@ -33,7 +33,7 @@ def _convert_floats(item):
 
 
 def _convert_decimals(item):
-    """Recursively convert Decimal -> int/float from DynamoDB reads."""
+    """Recursively convert Decimal → int/float from DynamoDB reads."""
     if isinstance(item, dict):
         return {k: _convert_decimals(v) for k, v in item.items()}
     elif isinstance(item, list):
@@ -57,7 +57,7 @@ class SmsStorage:
         self.messages = self._dynamo.Table(MESSAGES_TABLE)
         self.expenses = self._dynamo.Table(EXPENSES_TABLE)
 
-    # -- Contacts ----------------------------------------------------------
+    # ── Contacts ──────────────────────────────────────────────────────
 
     def get_contact(self, phone: str) -> Optional[SmsContact]:
         """Get a contact by phone number."""
@@ -98,7 +98,7 @@ class SmsStorage:
             logger.error(f"Failed to get contacts for event {event_id}: {e}")
             return []
 
-    # -- Sessions ----------------------------------------------------------
+    # ── Sessions ──────────────────────────────────────────────────────
 
     def get_active_session(self, phone: str) -> Optional[SmsSession]:
         """Get the most recent active session for a phone number."""
@@ -172,7 +172,7 @@ class SmsStorage:
         except Exception as e:
             logger.error(f"Failed to close session: {e}")
 
-    # -- Messages ----------------------------------------------------------
+    # ── Messages ──────────────────────────────────────────────────────
 
     def put_message(self, message: SmsMessage):
         """Store a message."""
@@ -230,7 +230,7 @@ class SmsStorage:
         except Exception as e:
             logger.error(f"Failed to delete messages: {e}")
 
-    # -- Expenses ----------------------------------------------------------
+    # ── Expenses ──────────────────────────────────────────────────────
 
     def put_expense(self, expense: SmsExpense):
         """Store an expense."""

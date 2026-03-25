@@ -39,3 +39,7 @@ logs/
 
 # Debug
 debug/
+
+# Backups
+*.backup-*
+.slot-state.json
